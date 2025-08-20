@@ -15,7 +15,9 @@ This document serves as an index of all key decisions made for the project, prov
 
 | ID | Title | Status | Date | Domain | Summary |
 |----|-------|--------|------|--------|---------|
-| [Template] | [Decision Title] | [Status] | [Date] | [Domain] | [Brief summary of the decision] |
+| 001 | [Technical Stack](./technical-stack.md) | Accepted | 2025-08-20 | Architecture | Next.js 14, React, Shadcn UI, Zustand for frontend stack |
+| 002 | [Client-Only Architecture](./client-only-architecture.md) | Accepted | 2025-08-20 | Architecture | No backend storage, browser-based with export/import |
+| 003 | [Pure Static Architecture](./pure-static-architecture.md) | Accepted | 2025-08-20 | Architecture | Static export only, no API routes needed |
 
 ### Decision Status Legend
 
@@ -27,15 +29,13 @@ This document serves as an index of all key decisions made for the project, prov
 ### Decision Categories
 
 #### By Domain
-<!-- Categories should be customized based on project type -->
 
-<!-- For Software Projects -->
-- **Frontend**: [List of decision IDs related to frontend]
-- **Backend**: [List of decision IDs related to backend]
-- **DevOps**: [List of decision IDs related to DevOps]
-- **Data**: [List of decision IDs related to data]
-- **Security**: [List of decision IDs related to security]
-- **Architecture**: [List of decision IDs related to overall architecture]
+- **Architecture**: 001, 002, 003
+- **Frontend**: 001
+- **Backend**: N/A (client-only architecture)
+- **DevOps**: 003 (static deployment)
+- **Data**: 002 (browser storage)
+- **Security**: 002, 003 (client-side security)
 
 <!-- For Research Projects -->
 - **Methodology**: [List of decision IDs related to research methodology]
@@ -56,14 +56,21 @@ This document serves as an index of all key decisions made for the project, prov
 - **Integration**: [List of decision IDs related to external integrations]
 
 #### By Status
-- **Proposed**: [List of decision IDs with proposed status]
-- **Accepted**: [List of decision IDs with accepted status]
-- **Deprecated**: [List of decision IDs with deprecated status]
-- **Superseded**: [List of decision IDs with superseded status]
+- **Proposed**: None
+- **Accepted**: 001, 002, 003
+- **Deprecated**: None
+- **Superseded**: None
 
 ### Decision Relationships
 
-[This section will contain a visualization or description of how decisions relate to each other]
+- **Technical Stack (001)** → enables → **Client-Only Architecture (002)**
+  - Modern frontend stack supports browser-based storage
+  
+- **Client-Only Architecture (002)** → enables → **Pure Static Architecture (003)**
+  - No backend storage means no need for API routes
+  
+- **Pure Static Architecture (003)** → simplifies → **Technical Stack (001)**
+  - Removes need for backend framework considerations
 
 ## Relationships
 - **Parent Nodes:** [foundation/structure.md]
@@ -79,9 +86,10 @@ This document serves as an index of all key decisions made for the project, prov
 - **Update Patterns:** This index should be updated whenever a new decision is added or a decision status changes
 
 ## Metadata
-- **Created:** [Date]
-- **Last Updated:** [Date]
-- **Updated By:** [Role/Agent]
+- **Created:** 2025-08-20
+- **Last Updated:** 2025-08-20
+- **Updated By:** Claude/Assistant
 
 ## Change History
-- [Date]: Initial creation of decision index
+- 2025-08-20: Initial creation of decision index
+- 2025-08-20: Added technical stack, client-only, and pure static architecture decisions
