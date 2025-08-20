@@ -1,0 +1,23 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/typescript-node
+{
+	"name": "Node.js & TypeScript",
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	"image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+	"runArgs": [
+		"--env-file",
+		".devcontainer/.env"
+	],
+	"features": {
+		"ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"saoudrizwan.claude-dev",
+				"Anthropic.claude-code"
+			]
+		}
+	},
+	"postCreateCommand": "sudo npm i -g @anthropic-ai/claude-code"
+}
