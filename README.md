@@ -1,7 +1,24 @@
-# Bare Context Network
-This project is a starter template for a generic context-network (more info at https://jwynia.github.io/context-networks/). It can be used as a collaboration context manager for a wide range of projects. They are used for software projects, writing projects of all kinds (fiction, non-fiction, marketing, technical, etc.), building knowledge bases, managing research and analysis and more.
+# BAIGEL - Protocol-Agnostic Agent UI
 
-This particular template repository is generic so that it isn't aimed at any one of those project types. Other templates exist (or will soon) that are aimed at common project types. Look at those and use one if it seems like a good match. But, if not, use this one.
+**B**asic **A**gent **I**nterface for **G**eneral **E**xecution and **L**anguage models
+
+A universal front-end for AI agents that works with any protocol - MCP, A2A, AG-UI, and more. Named after the "everything bagel" from "Everything Everywhere All at Once" because it brings everything together.
+
+## Problem We're Solving
+
+The AI agent ecosystem is fragmenting into incompatible protocols. Every UI needs custom code for each protocol, creating an N×M integration nightmare. BAIGEL provides a single, extensible front-end that works with any agent protocol through a plugin architecture.
+
+## Key Features
+
+- 🔌 **Protocol Agnostic**: Works with MCP, A2A, AG-UI, OpenAI Functions, and more
+- 🧩 **Plugin Architecture**: Add new protocols without modifying core code
+- 🎯 **Unified Experience**: Consistent UI regardless of underlying protocol
+- ⚡ **Minimal Overhead**: < 10ms abstraction layer latency
+- 🛠️ **Developer Friendly**: Clear APIs and patterns for extending
+
+## Project Status
+
+Currently in architecture and planning phase. See the [context network](./context-network/discovery.md) for detailed planning documents and design decisions.
 
 ## Getting Started
 Context networks are intended to be used with an LLM agent that has file access to all of the files in the project folder. For people in software development professions, that can be agents they write. But, for most people, the easiest access to such agents is via IDE coding tools.
