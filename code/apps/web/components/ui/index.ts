@@ -61,3 +61,38 @@ export {
   DropdownMenuSubTrigger,
   DropdownMenuRadioGroup,
 } from "./dropdown-menu"
+
+// Textarea component
+export { Textarea } from "./textarea"
+
+// ScrollArea component
+export { ScrollArea, ScrollBar } from "./scroll-area"
+
+// Tabs components
+export {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "./tabs"
+
+// Badge component
+export { Badge, badgeVariants } from "./badge"
+
+// Avatar components
+export { Avatar, AvatarImage, AvatarFallback } from "./avatar"
+
+// Form components
+export {
+  useFormField,
+  Form,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormDescription,
+  FormMessage,
+  FormField,
+} from "./form"
+
+// Label component
+export { Label } from "./label"

@@ -1,3 +1,6 @@
+import Link from 'next/link'
+import { Button } from '@/components/ui'
+
 export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-24">
@@ -9,6 +12,17 @@ export default function Home() {
           <p className="mt-4 text-xl text-muted-foreground">
             Protocol-agnostic front-end for AI agents
           </p>
+        </div>
+
+        <div className="text-center mt-8">
+          <Link href="/chat">
+            <Button size="lg" className="mr-4">
+              Start Chatting
+            </Button>
+          </Link>
+          <Button variant="outline" size="lg">
+            Learn More
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
