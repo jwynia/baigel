@@ -4,7 +4,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, Key, Lock, Network, Plus, Shield, Tool } from 'lucide-react';
+import { Check, Key, Lock, Network, Plus, Shield, Wrench } from 'lucide-react';
 import type { DiscoveredAgent } from '@/types/discovery';
 
 interface DiscoveryCardProps {
@@ -78,7 +78,7 @@ export function DiscoveryCard({ agent, isSelected, onAdd, onToggleSelect }: Disc
         <div className="flex flex-wrap gap-2 text-sm">
           {toolCount > 0 && (
             <div className="flex items-center gap-1 text-muted-foreground">
-              <Tool className="h-4 w-4" />
+              <Wrench className="h-4 w-4" />
               <span>{toolCount} {toolCount === 1 ? 'tool' : 'tools'}</span>
             </div>
           )}
