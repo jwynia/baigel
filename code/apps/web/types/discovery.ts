@@ -2,7 +2,7 @@
  * Types for Agent/Tool Discovery System
  */
 
-export type ProtocolType = 'MCP' | 'A2A' | 'AG-UI' | 'OpenAI' | 'Unknown';
+export type ProtocolType = 'MCP' | 'A2A' | 'AG-UI' | 'OpenAI' | 'Workflow' | 'Unknown';
 
 export type DiscoveryStatus = 'idle' | 'probing' | 'success' | 'error' | 'partial';
 
@@ -124,6 +124,13 @@ export const DISCOVERY_ENDPOINTS = {
     '/v1/models',
     '/v1/chat/completions',
   ],
+  Workflow: [
+    '/openapi.json',
+    '/api/mcp/v0/servers',
+    '/workflows/list',
+    '/api/workflows',
+    '/v1/workflows',
+  ],
   Registry: [
     '/agents/public',
     '/agents/entitled',
@@ -146,6 +153,12 @@ export const PROTOCOL_PATTERNS = {
   OpenAI: {
     headers: ['openai-version'],
     jsonKeys: ['object', 'data', 'model'],
+  },
+  Workflow: {
+    headers: ['x-mastra-version', 'x-workflow-engine'],
+    jsonKeys: ['openapi', 'servers', 'paths', 'workflows'],
+    pathPatterns: ['/workflows?', '/execute', '/trigger', '/run'],
+    titlePatterns: ['mastra', 'workflow', 'automation'],
   },
 } as const;
 

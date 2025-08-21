@@ -15,6 +15,7 @@ import {
   parseA2AAgentCard, 
   parseMCPResponse, 
   parseOpenAIResponse,
+  parseWorkflowResponse,
   detectProtocolFromResponse,
   mergeDiscoveredAgents
 } from './protocols';
@@ -25,7 +26,7 @@ import {
 const DEFAULT_PROBE_CONFIG = {
   timeout: 5000,
   parallel: true,
-  protocols: ['A2A', 'MCP', 'OpenAI'] as ProtocolType[],
+  protocols: ['A2A', 'MCP', 'OpenAI', 'Workflow'] as ProtocolType[],
 };
 
 /**
@@ -114,6 +115,8 @@ function parseEndpointResponse(
       return parseMCPResponse(endpoint.data, baseUrl, endpoint.url);
     case 'OpenAI':
       return parseOpenAIResponse(endpoint.data, baseUrl);
+    case 'Workflow':
+      return parseWorkflowResponse(endpoint.data, baseUrl, endpoint.url);
     default:
       return null;
   }
@@ -153,6 +156,12 @@ export async function probeForAgents(config: ProbeConfig): Promise<ProbeResult> 
   if (protocols.includes('OpenAI')) {
     DISCOVERY_ENDPOINTS.OpenAI.forEach(ep => {
       endpointsToProbe.push({ endpoint: ep, protocol: 'OpenAI' });
+    });
+  }
+  
+  if (protocols.includes('Workflow')) {
+    DISCOVERY_ENDPOINTS.Workflow.forEach(ep => {
+      endpointsToProbe.push({ endpoint: ep, protocol: 'Workflow' });
     });
   }
 
@@ -243,5 +252,6 @@ export function getExampleUrls(): Array<{ url: string; description: string }> {
     { url: 'http://localhost:11434', description: 'Local Ollama Server' },
     { url: 'https://api.openai.com', description: 'OpenAI API' },
     { url: 'https://agent.example.com', description: 'A2A Agent Server' },
+    { url: 'http://100.80.122.46:4111', description: 'Live Mastra Workflow Engine' },
   ];
 }

@@ -9,6 +9,7 @@ import type {
   DiscoveredEndpoint,
   AuthenticationType 
 } from '@/types/discovery';
+import type { DiscoveredWorkflowService } from '@/types/workflows';
 
 /**
  * Parse A2A Agent Card response
@@ -165,6 +166,177 @@ export function parseOpenAIResponse(data: any, baseUrl: string): DiscoveredAgent
 }
 
 /**
+ * Parse Workflow service response (Mastra, OpenAPI, etc.)
+ */
+export function parseWorkflowResponse(data: any, baseUrl: string, endpoint: string): DiscoveredAgent | null {
+  try {
+    let workflowService: DiscoveredWorkflowService;
+    
+    // Detect workflow framework type
+    if (data.info?.title?.toLowerCase().includes('mastra') || endpoint.includes('mcp/v0/servers') || data.servers) {
+      // Mastra framework detection
+      workflowService = parseMastraWorkflowService(data, baseUrl, endpoint);
+    } else if (data.openapi || data.swagger) {
+      // Generic OpenAPI workflow service
+      workflowService = parseOpenAPIWorkflowService(data, baseUrl, endpoint);
+    } else if (data.workflows || Array.isArray(data)) {
+      // Generic workflow list
+      workflowService = parseGenericWorkflowService(data, baseUrl, endpoint);
+    } else {
+      return null;
+    }
+    
+    // Convert to DiscoveredAgent format for compatibility
+    const agent: DiscoveredAgent = {
+      id: workflowService.id,
+      name: workflowService.name,
+      description: workflowService.description,
+      protocol: 'Workflow',
+      baseUrl: workflowService.baseUrl,
+      endpoints: [{
+        url: endpoint,
+        protocol: 'Workflow',
+        success: true,
+        data
+      }],
+      capabilities: workflowService.capabilities.map(cap => `workflow:${cap}`),
+      tools: [], // Will be populated by workflow adapter
+      authentication: workflowService.authentication,
+      transport: ['http'],
+      metadata: {
+        version: '1.0',
+        subProtocol: workflowService.subProtocol,
+        workflowCount: workflowService.workflowCount,
+        frameworks: workflowService.frameworks,
+        schemaSupport: workflowService.schemaSupport,
+        workflowEndpoints: workflowService.endpoints
+      }
+    };
+    
+    return agent;
+  } catch (error) {
+    console.error('Failed to parse workflow response:', error);
+    return null;
+  }
+}
+
+/**
+ * Parse Mastra-specific workflow service
+ */
+function parseMastraWorkflowService(data: any, baseUrl: string, endpoint: string): DiscoveredWorkflowService {
+  const servers = data.servers || [];
+  const serverCount = Array.isArray(servers) ? servers.length : 0;
+  
+  return {
+    id: `mastra-${baseUrl.replace(/[^a-zA-Z0-9]/g, '-')}`,
+    name: data.info?.title || 'Mastra Workflow Engine',
+    description: data.info?.description || `Mastra workflow service with ${serverCount} MCP servers`,
+    protocol: 'Workflow',
+    subProtocol: 'Mastra',
+    baseUrl,
+    workflowCount: serverCount * 5, // Estimate 5 tools per server
+    frameworks: ['Mastra', 'MCP'],
+    capabilities: [
+      'api_integrations',
+      'custom_code',
+      'monitoring',
+      'audit_logging'
+    ],
+    schemaSupport: {
+      input: true,
+      output: true,
+      validation: true,
+      uiHints: false
+    },
+    endpoints: [
+      { url: `${baseUrl}/api/mcp/v0/servers`, method: 'GET', type: 'discovery' },
+      { url: `${baseUrl}/api/mcp/{serverId}/tools`, method: 'GET', type: 'discovery' },
+      { url: `${baseUrl}/api/mcp/{serverId}/tools/{toolId}/execute`, method: 'POST', type: 'execution' }
+    ],
+    authentication: {
+      type: 'none',
+      required: false,
+      description: 'No authentication required for this instance'
+    }
+  };
+}
+
+/**
+ * Parse generic OpenAPI workflow service
+ */
+function parseOpenAPIWorkflowService(data: any, baseUrl: string, endpoint: string): DiscoveredWorkflowService {
+  const paths = data.paths || {};
+  const workflowPaths = Object.keys(paths).filter(path => 
+    path.includes('workflow') || path.includes('execute') || path.includes('trigger')
+  );
+  
+  return {
+    id: `openapi-${baseUrl.replace(/[^a-zA-Z0-9]/g, '-')}`,
+    name: data.info?.title || 'OpenAPI Workflow Service',
+    description: data.info?.description || `OpenAPI workflow service with ${workflowPaths.length} workflow endpoints`,
+    protocol: 'Workflow',
+    subProtocol: 'OpenAPI',
+    baseUrl,
+    workflowCount: workflowPaths.length,
+    frameworks: ['OpenAPI'],
+    capabilities: [
+      'api_integrations',
+      'monitoring'
+    ],
+    schemaSupport: {
+      input: true,
+      output: true,
+      validation: true,
+      uiHints: false
+    },
+    endpoints: workflowPaths.map(path => ({
+      url: `${baseUrl}${path}`,
+      method: 'POST',
+      type: 'execution'
+    })),
+    authentication: {
+      type: 'api-key',
+      required: true,
+      description: 'API key authentication typically required'
+    }
+  };
+}
+
+/**
+ * Parse generic workflow service
+ */
+function parseGenericWorkflowService(data: any, baseUrl: string, endpoint: string): DiscoveredWorkflowService {
+  const workflows = Array.isArray(data) ? data : (data.workflows || []);
+  
+  return {
+    id: `workflow-${baseUrl.replace(/[^a-zA-Z0-9]/g, '-')}`,
+    name: 'Generic Workflow Service',
+    description: `Workflow service with ${workflows.length} available workflows`,
+    protocol: 'Workflow',
+    subProtocol: 'Generic',
+    baseUrl,
+    workflowCount: workflows.length,
+    frameworks: ['Generic'],
+    capabilities: [
+      'api_integrations'
+    ],
+    schemaSupport: {
+      input: true,
+      output: false,
+      validation: false,
+      uiHints: false
+    },
+    endpoints: [
+      { url: endpoint, method: 'GET', type: 'discovery' }
+    ],
+    authentication: {
+      type: 'none',
+      required: false
+    }
+  };
+}
+
+/**
  * Detect protocol type from response
  */
 export function detectProtocolFromResponse(data: any, headers?: Headers): ProtocolType {
@@ -173,12 +345,24 @@ export function detectProtocolFromResponse(data: any, headers?: Headers): Protoc
     if (headers.get('x-mcp-version')) return 'MCP';
     if (headers.get('x-a2a-version')) return 'A2A';
     if (headers.get('openai-version')) return 'OpenAI';
+    if (headers.get('x-mastra-version') || headers.get('x-workflow-engine')) return 'Workflow';
   }
 
   // Check response structure
   if (data) {
     // A2A detection
     if (data.agentId && data.serviceEndpointUrl) return 'A2A';
+    
+    // Workflow detection
+    if (data.info?.title?.toLowerCase().includes('mastra')) return 'Workflow';
+    if (data.servers && Array.isArray(data.servers) && data.servers[0]?.id) return 'Workflow';
+    if (data.openapi && data.paths) {
+      const paths = Object.keys(data.paths);
+      if (paths.some(path => path.includes('workflow') || path.includes('execute') || path.includes('trigger'))) {
+        return 'Workflow';
+      }
+    }
+    if (data.workflows || (Array.isArray(data) && data[0]?.workflow)) return 'Workflow';
     
     // MCP detection
     if (data.tools || data.resources || data.mcp_version) return 'MCP';
