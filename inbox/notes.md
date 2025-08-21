@@ -1,0 +1,2 @@
+# Notes
+* How do we make discovery of agents/tools easier like LMStudio/Ollama do for models? How do we take in just a base URL and hit a few likely endpoints to see if we find agent lists or tool lists that we can display in a UI to add to our app's config of agents/tools?
