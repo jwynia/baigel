@@ -4,13 +4,39 @@ import { ChatHeader } from './ChatHeader'
 import { MessageList } from './MessageList'
 import { MessageInput } from './MessageInput'
 import { useChat, useChatStore } from './ChatProvider'
+import { useConnectionStore } from '@/lib/stores/connections'
 
 export function ChatInterface() {
   const { sendMessage } = useChat()
   const { isStreaming, isConnected } = useChatStore()
+  const { getActiveConnection } = useConnectionStore()
+  
+  const activeConnection = getActiveConnection()
+  const canSendMessage = activeConnection && activeConnection.status === 'connected' && !isStreaming
 
   const handleSendMessage = async (content: string) => {
-    await sendMessage(content)
+    if (canSendMessage) {
+      await sendMessage(content)
+    }
+  }
+
+  const getPlaceholderText = () => {
+    if (!activeConnection) {
+      return "Select a connection to start chatting..."
+    }
+    if (activeConnection.status === 'connecting') {
+      return "Connecting..."
+    }
+    if (activeConnection.status === 'error') {
+      return "Connection error. Please check your settings..."
+    }
+    if (activeConnection.status === 'disconnected') {
+      return "Connection disconnected. Click connect to start..."
+    }
+    if (isStreaming) {
+      return "AI is responding..."
+    }
+    return "Type a message..."
   }
 
   return (
@@ -38,14 +64,8 @@ export function ChatInterface() {
         >
           <MessageInput 
             onSend={handleSendMessage}
-            disabled={!isConnected || isStreaming}
-            placeholder={
-              !isConnected 
-                ? "Connecting..." 
-                : isStreaming 
-                  ? "AI is responding..." 
-                  : "Type a message..."
-            }
+            disabled={!canSendMessage}
+            placeholder={getPlaceholderText()}
           />
         </div>
       </div>

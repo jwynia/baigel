@@ -96,3 +96,6 @@ export {
 
 // Label component
 export { Label } from "./label"
+
+// Checkbox component
+export { Checkbox } from "./checkbox"

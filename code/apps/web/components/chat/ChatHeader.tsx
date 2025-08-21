@@ -1,14 +1,16 @@
 'use client'
 
 import { Badge } from '@/components/ui'
-import { ProtocolSelector } from '../protocols/ProtocolSelector'
-import { ConnectionStatus } from '../connection/ConnectionStatus'
+import { ConnectionSelector } from '../connections/ConnectionSelector'
 import { useChatStore } from './ChatProvider'
+import { useConnectionStore } from '@/lib/stores/connections'
 
 export function ChatHeader() {
-  const { activeProtocol, isConnected, messages } = useChatStore()
+  const { messages } = useChatStore()
+  const { getActiveConnection } = useConnectionStore()
 
   const messageCount = messages.length
+  const activeConnection = getActiveConnection()
 
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4">
@@ -17,7 +19,9 @@ export function ChatHeader() {
           <div>
             <h1 className="text-lg font-semibold">BAIGEL Agent Chat</h1>
             <p className="text-sm text-muted-foreground">
-              Protocol-agnostic AI agent interface
+              {activeConnection 
+                ? `Connected to ${activeConnection.name}` 
+                : 'Protocol-agnostic AI agent interface'}
             </p>
           </div>
           
@@ -29,8 +33,7 @@ export function ChatHeader() {
         </div>
 
         <div className="flex items-center space-x-4">
-          <ProtocolSelector />
-          <ConnectionStatus />
+          <ConnectionSelector />
         </div>
       </div>
     </header>

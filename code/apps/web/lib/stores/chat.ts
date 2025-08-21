@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { ChatState, Message, ProtocolType, Tool, ToolCall, ConnectionConfig } from '@/lib/types'
+import { useConnectionStore } from './connections'
 
 interface ChatStore extends ChatState {
   // Actions
@@ -87,6 +88,8 @@ export const useChatStore = create<ChatStore>()(
       // Mock implementation for now - will be replaced with actual protocol adapters
       sendMessage: async (content) => {
         const { addMessage, setStreaming } = get()
+        const connectionStore = useConnectionStore.getState()
+        const activeConnection = connectionStore.getActiveConnection()
         
         // Add user message
         const userMessage: Omit<Message, 'timestamp'> = {
@@ -109,8 +112,11 @@ export const useChatStore = create<ChatStore>()(
           isStreaming: true
         })
 
-        // Simulate streaming response
-        const mockResponse = `I received your message: "${content}". This is a mock response from the ${get().activeProtocol} protocol.`
+        // Simulate streaming response with connection info
+        const connectionInfo = activeConnection 
+          ? `${activeConnection.name} (${activeConnection.protocol.toUpperCase()})`
+          : 'no active connection'
+        const mockResponse = `I received your message: "${content}". This is a mock response from ${connectionInfo}.`
         
         for (let i = 0; i <= mockResponse.length; i++) {
           await new Promise(resolve => setTimeout(resolve, 20))
@@ -124,26 +130,49 @@ export const useChatStore = create<ChatStore>()(
       },
 
       connect: async () => {
-        const { setConnected, activeProtocol } = get()
+        const { setConnected } = get()
+        const connectionStore = useConnectionStore.getState()
+        const activeConnection = connectionStore.getActiveConnection()
+        
+        if (!activeConnection) {
+          console.warn('No active connection to connect to')
+          return
+        }
         
         // Mock connection logic
         await new Promise(resolve => setTimeout(resolve, 1000))
         
         setConnected(true)
         
-        // Mock available tools based on protocol
-        const mockTools: Tool[] = [
-          {
-            name: 'search',
-            description: 'Search for information',
-            parameters: { query: 'string' }
-          },
-          {
-            name: 'calculator',
-            description: 'Perform calculations',
-            parameters: { expression: 'string' }
-          }
-        ]
+        // Mock available tools based on connection's protocol
+        const mockTools: Tool[] = []
+        
+        switch (activeConnection.protocol) {
+          case 'mcp':
+            mockTools.push(
+              { name: 'read_file', description: 'Read file contents', parameters: { path: 'string' } },
+              { name: 'write_file', description: 'Write file contents', parameters: { path: 'string', content: 'string' } },
+              { name: 'list_directory', description: 'List directory contents', parameters: { path: 'string' } }
+            )
+            break
+          case 'openai':
+            mockTools.push(
+              { name: 'dall_e', description: 'Generate images', parameters: { prompt: 'string' } },
+              { name: 'code_interpreter', description: 'Execute Python code', parameters: { code: 'string' } }
+            )
+            break
+          case 'langchain':
+            mockTools.push(
+              { name: 'search', description: 'Search for information', parameters: { query: 'string' } },
+              { name: 'calculator', description: 'Perform calculations', parameters: { expression: 'string' } },
+              { name: 'weather', description: 'Get weather information', parameters: { location: 'string' } }
+            )
+            break
+          default:
+            mockTools.push(
+              { name: 'generic_tool', description: 'Generic tool', parameters: { input: 'string' } }
+            )
+        }
         
         get().setAvailableTools(mockTools)
       },
