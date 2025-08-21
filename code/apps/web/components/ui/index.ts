@@ -99,3 +99,6 @@ export { Label } from "./label"
 
 // Checkbox component
 export { Checkbox } from "./checkbox"
+
+// Alert components
+export { Alert, AlertTitle, AlertDescription } from "./alert"

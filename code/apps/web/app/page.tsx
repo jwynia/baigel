@@ -1,59 +1,44 @@
-import Link from 'next/link'
-import { Button } from '@/components/ui'
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useOnboardingStore } from '@/lib/stores/onboarding'
+import { OnboardingPage } from '@/components/onboarding/OnboardingPage'
+import { Loader2 } from 'lucide-react'
 
 export default function Home() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="max-w-5xl w-full space-y-8">
-        <div className="text-center">
-          <h1 className="text-6xl font-bold tracking-tight">
-            BAIGEL
-          </h1>
-          <p className="mt-4 text-xl text-muted-foreground">
-            Protocol-agnostic front-end for AI agents
-          </p>
+  const router = useRouter()
+  const { userStatus, checkUserStatus } = useOnboardingStore()
+
+  useEffect(() => {
+    checkUserStatus()
+  }, [checkUserStatus])
+
+  // Show loading state while checking
+  if (userStatus === 'checking') {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-8">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Checking your preferences...</p>
         </div>
+      </main>
+    )
+  }
 
-        <div className="text-center mt-8">
-          <Link href="/chat">
-            <Button size="lg" className="mr-4">
-              Start Chatting
-            </Button>
-          </Link>
-          <Button variant="outline" size="lg">
-            Learn More
-          </Button>
+  // Redirect returning users directly to chat
+  if (userStatus === 'returning') {
+    router.push('/chat')
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-8">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Welcome back! Redirecting to chat...</p>
         </div>
+      </main>
+    )
+  }
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-          <div className="rounded-lg border bg-card p-6">
-            <h3 className="font-semibold text-lg mb-2">MCP Support</h3>
-            <p className="text-sm text-muted-foreground">
-              Connect to Model Context Protocol servers via HTTP, SSE, and STDIO
-            </p>
-          </div>
-
-          <div className="rounded-lg border bg-card p-6">
-            <h3 className="font-semibold text-lg mb-2">A2A Protocol</h3>
-            <p className="text-sm text-muted-foreground">
-              Agent-to-Agent communication with secure identity cards
-            </p>
-          </div>
-
-          <div className="rounded-lg border bg-card p-6">
-            <h3 className="font-semibold text-lg mb-2">AG-UI Native</h3>
-            <p className="text-sm text-muted-foreground">
-              First-class support for Agent-GUI protocol with streaming
-            </p>
-          </div>
-        </div>
-
-        <div className="text-center mt-16">
-          <p className="text-sm text-muted-foreground">
-            Named after the "everything bagel" from "Everything Everywhere All at Once"
-          </p>
-        </div>
-      </div>
-    </main>
-  );
+  // Show onboarding for new users (or when storage is restricted)
+  return <OnboardingPage />
 }
