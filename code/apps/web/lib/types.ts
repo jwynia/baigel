@@ -10,6 +10,7 @@ export interface Message {
   tool?: string
   arguments?: Record<string, unknown>
   result?: unknown
+  attachments?: Attachment[]
 }
 
 // Protocol types
@@ -58,6 +59,18 @@ export interface ChatState {
   connectionConfig?: ConnectionConfig
   availableTools: Tool[]
   activeToolCalls: ToolCall[]
+}
+
+// Attachment types
+export interface Attachment {
+  id: string
+  name: string
+  type: string
+  size: number
+  url: string
+  thumbnail?: string
+  uploadProgress?: number
+  status?: 'uploading' | 'complete' | 'error'
 }
 
 // Form types

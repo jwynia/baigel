@@ -35,6 +35,11 @@ This index tracks all discoveries, insights, and learnings captured during the B
 - Message translation strategies
 - Authentication bridging approaches
 
+3. **[Onboarding Implementation Insights](./onboarding-implementation-insights.md)** - 2025-08-21
+   - Client-side user detection patterns
+   - Privacy-preserving onboarding flow
+   - Storage restriction handling strategies
+
 ## Discovery Patterns Observed
 
 ### Simplification Through Understanding
@@ -94,5 +99,5 @@ This index tracks all discoveries, insights, and learnings captured during the B
 
 ## Metadata
 - **Created**: 2025-08-20
-- **Last Updated**: 2025-08-20
+- **Last Updated**: 2025-08-21
 - **Maintainer**: Project Team
