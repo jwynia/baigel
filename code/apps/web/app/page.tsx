@@ -14,6 +14,13 @@ export default function Home() {
     checkUserStatus()
   }, [checkUserStatus])
 
+  // Redirect returning users directly to chat
+  useEffect(() => {
+    if (userStatus === 'returning') {
+      router.push('/chat')
+    }
+  }, [userStatus, router])
+
   // Show loading state while checking
   if (userStatus === 'checking') {
     return (
@@ -26,9 +33,8 @@ export default function Home() {
     )
   }
 
-  // Redirect returning users directly to chat
+  // Show redirect message for returning users
   if (userStatus === 'returning') {
-    router.push('/chat')
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-8">
         <div className="flex flex-col items-center gap-4">
