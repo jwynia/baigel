@@ -8,6 +8,8 @@ export { WorkflowExecutor } from './WorkflowExecutor';
 export { UniversalFormRenderer } from './UniversalFormRenderer';
 export { ExecutionProgress } from './ExecutionProgress';
 export { ResultsDisplay } from './ResultsDisplay';
+export { WorkflowDiscoveryCard } from './WorkflowDiscoveryCard';
+export { WorkflowCatalog } from './WorkflowCatalog';
 
 // Re-export types for convenience
 export type {

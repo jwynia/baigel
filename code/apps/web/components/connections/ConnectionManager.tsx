@@ -161,8 +161,12 @@ export function ConnectionManager() {
                   {connection.tags && connection.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {connection.tags.map(tag => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
+                        <Badge 
+                          key={tag} 
+                          variant={tag === 'discovered' ? 'default' : 'outline'} 
+                          className={`text-xs ${tag === 'discovered' ? 'bg-blue-500 text-white' : ''}`}
+                        >
+                          {tag === 'discovered' ? '🔍 Auto-discovered' : tag}
                         </Badge>
                       ))}
                     </div>

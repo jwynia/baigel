@@ -4,8 +4,10 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, Key, Lock, Network, Plus, Shield, Wrench } from 'lucide-react';
+import { Check, Key, Lock, Network, Plus, Shield, Wrench, Link as LinkIcon } from 'lucide-react';
 import type { DiscoveredAgent } from '@/types/discovery';
+import { useConnectionStore } from '@/lib/stores/connections';
+import { discoveredAgentToConnection, isAgentAlreadyConnected } from '@/lib/utils/discovery-to-connection';
 
 interface DiscoveryCardProps {
   agent: DiscoveredAgent;
@@ -31,9 +33,18 @@ const authIcons: Record<string, React.ReactNode> = {
 };
 
 export function DiscoveryCard({ agent, isSelected, onAdd, onToggleSelect }: DiscoveryCardProps) {
+  const { connections, addConnection } = useConnectionStore();
   const toolCount = agent.tools?.length || 0;
   const capabilityCount = agent.capabilities?.length || 0;
   const protocolColor = protocolColors[agent.protocol] || protocolColors.Unknown;
+  const isAlreadyConnected = isAgentAlreadyConnected(agent, connections);
+
+  const handleAddToConnections = () => {
+    if (isAlreadyConnected) return;
+    
+    const connectionData = discoveredAgentToConnection(agent);
+    addConnection(connectionData);
+  };
 
   return (
     <Card className={`relative transition-all ${isSelected ? 'ring-2 ring-primary' : ''}`}>
@@ -61,6 +72,17 @@ export function DiscoveryCard({ agent, isSelected, onAdd, onToggleSelect }: Disc
                 <Check className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
               </Button>
             )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleAddToConnections}
+              disabled={isAlreadyConnected}
+              className="gap-1"
+              title={isAlreadyConnected ? 'Already in connections' : 'Add to connection manager'}
+            >
+              <LinkIcon className="h-4 w-4" />
+              {isAlreadyConnected ? 'Connected' : 'Connect'}
+            </Button>
             <Button
               size="sm"
               onClick={() => onAdd(agent)}

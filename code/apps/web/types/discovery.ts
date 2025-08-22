@@ -106,6 +106,12 @@ export interface ProbeResult {
     error: string;
   }>;
   duration: number;
+  exploration?: {
+    endpointsChecked: number;
+    endpointsResponded: number;
+    protocolsExplored: ProtocolType[];
+    baseUrl: string;
+  };
 }
 
 /**

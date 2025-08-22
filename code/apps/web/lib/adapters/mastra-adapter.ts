@@ -365,7 +365,11 @@ export class MastraAdapter extends BaseWorkflowAdapter {
         adapter: 'MastraAdapter'
       },
       metadata: {
-        category: [server.name.toLowerCase().replace(/\s+/g, '-'), 'mcp-tool'],
+        category: [
+          server.name.replace(/^Aidant\s+/i, '').replace(/\s+Tools?$/i, ''), // Clean server name
+          'MCP Server',
+          'Tool'
+        ],
         complexity: this.determineComplexity(tool),
         requiresAuth: false, // Current instance is unauthenticated
         supportsBatch: false,

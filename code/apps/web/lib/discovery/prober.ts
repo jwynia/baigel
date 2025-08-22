@@ -30,6 +30,28 @@ const DEFAULT_PROBE_CONFIG = {
 };
 
 /**
+ * Check if an error is expected during discovery exploration
+ */
+function isExpectedDiscoveryFailure(error: string): boolean {
+  const expectedFailures = [
+    '404',           // Endpoint doesn't exist
+    '405',           // Method not allowed  
+    '403',           // Forbidden (common for API endpoints without auth)
+    '401',           // Unauthorized (expected when probing auth-required endpoints)
+    'ENOTFOUND',     // Domain doesn't exist
+    'ECONNREFUSED',  // Connection refused (service not running)
+    'ETIMEDOUT',     // Timeout (service slow/unreachable)
+    'fetch failed',  // Generic fetch failure
+    'Response is not JSON', // HTML pages, etc.
+    'AbortError',    // Request aborted due to timeout
+  ];
+  
+  return expectedFailures.some(pattern => 
+    error.toLowerCase().includes(pattern.toLowerCase())
+  );
+}
+
+/**
  * Probe a single endpoint
  */
 async function probeEndpoint(
@@ -191,6 +213,8 @@ export async function probeForAgents(config: ProbeConfig): Promise<ProbeResult> 
   // Parse successful responses into agents
   const agents: DiscoveredAgent[] = [];
   const errors: ProbeResult['errors'] = [];
+  const explored = discoveredEndpoints.length;
+  const successful = discoveredEndpoints.filter(e => e.success).length;
 
   for (const endpoint of discoveredEndpoints) {
     if (endpoint.success) {
@@ -198,8 +222,8 @@ export async function probeForAgents(config: ProbeConfig): Promise<ProbeResult> 
       if (agent) {
         agents.push(agent);
       }
-    } else if (endpoint.error && !endpoint.error.includes('404')) {
-      // Don't report 404s as errors (expected for many endpoints)
+    } else if (endpoint.error && !isExpectedDiscoveryFailure(endpoint.error)) {
+      // Only report unexpected errors, not normal exploration failures
       errors.push({
         endpoint: endpoint.url,
         protocol: endpoint.protocol,
@@ -227,7 +251,13 @@ export async function probeForAgents(config: ProbeConfig): Promise<ProbeResult> 
     status,
     agents: mergedAgents,
     errors,
-    duration
+    duration,
+    exploration: {
+      endpointsChecked: explored,
+      endpointsResponded: successful,
+      protocolsExplored: protocols,
+      baseUrl: normalizedUrl
+    }
   };
 }
 
