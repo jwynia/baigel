@@ -43,7 +43,12 @@ export function DiscoveryCard({ agent, isSelected, onAdd, onToggleSelect }: Disc
     if (isAlreadyConnected) return;
     
     const connectionData = discoveredAgentToConnection(agent);
-    addConnection(connectionData);
+    const newConnection = addConnection(connectionData);
+    
+    // Optional: Also trigger the onAdd callback if provided
+    if (onAdd && newConnection) {
+      onAdd(agent);
+    }
   };
 
   return (
@@ -72,25 +77,21 @@ export function DiscoveryCard({ agent, isSelected, onAdd, onToggleSelect }: Disc
                 <Check className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
               </Button>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleAddToConnections}
-              disabled={isAlreadyConnected}
-              className="gap-1"
-              title={isAlreadyConnected ? 'Already in connections' : 'Add to connection manager'}
-            >
-              <LinkIcon className="h-4 w-4" />
-              {isAlreadyConnected ? 'Connected' : 'Connect'}
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => onAdd(agent)}
-              className="gap-1"
-            >
-              <Plus className="h-4 w-4" />
-              Add
-            </Button>
+            {isAlreadyConnected ? (
+              <Badge variant="default" className="bg-green-500 text-white px-3 py-1">
+                <Check className="h-3 w-3 mr-1" />
+                Added
+              </Badge>
+            ) : (
+              <Button
+                size="sm"
+                onClick={handleAddToConnections}
+                className="gap-1"
+              >
+                <Plus className="h-4 w-4" />
+                Add to Connections
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -157,6 +158,13 @@ export function DiscoveryCard({ agent, isSelected, onAdd, onToggleSelect }: Disc
         {agent.metadata?.version && (
           <div className="text-xs text-muted-foreground">
             Version: {agent.metadata.version}
+          </div>
+        )}
+        
+        {/* Help text for added connections */}
+        {isAlreadyConnected && (
+          <div className="text-xs text-muted-foreground border-t pt-2 mt-2">
+            ✓ Added to connections. Go to <span className="font-medium">Settings → Connections</span> to configure and activate.
           </div>
         )}
       </CardContent>

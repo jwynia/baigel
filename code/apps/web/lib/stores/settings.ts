@@ -128,48 +128,16 @@ export const useSettingsStore = create<SettingsStore>()(
       
       clearAllSettings: async () => {
         try {
-          // Get all localStorage keys
-          const keys = Object.keys(localStorage);
+          console.log('Starting full reset of application data...');
           
-          // Clear all localStorage items (being thorough)
-          keys.forEach(key => {
-            // Only clear items that look like they belong to our app
-            // This preserves other site data if any
-            if (
-              key.includes('store') ||
-              key.includes('baigel') ||
-              key.includes('theme') ||
-              key.includes('onboarding') ||
-              key.includes('chat') ||
-              key.includes('connection') ||
-              key.includes('agent') ||
-              key.includes('preference') ||
-              key.includes('settings')
-            ) {
-              localStorage.removeItem(key);
-              console.log('Removed localStorage key:', key);
-            }
-          });
-          
-          // Also explicitly remove known keys to be sure
-          const knownKeys = [
-            'connections-store',
-            'agents-store', 
-            'preferences-store',
-            'onboarding-store',
-            'chat-store',
-            'settings-store',
-            'theme',
-            'hasCompletedOnboarding',
-            'userConsent'
-          ];
-          
-          knownKeys.forEach(key => {
-            localStorage.removeItem(key);
-          });
+          // Clear ALL localStorage - for a true reset
+          // This is what the user expects when clicking reset
+          localStorage.clear();
+          console.log('Cleared all localStorage');
           
           // Clear all session storage
           sessionStorage.clear();
+          console.log('Cleared all sessionStorage');
           
           // Clear all cookies for this domain (if any)
           document.cookie.split(";").forEach((c) => {
@@ -177,12 +145,37 @@ export const useSettingsStore = create<SettingsStore>()(
               .replace(/^ +/, "")
               .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
           });
+          console.log('Cleared all cookies');
+          
+          // Clear IndexedDB databases if any
+          if ('indexedDB' in window) {
+            try {
+              const databases = await indexedDB.databases();
+              for (const db of databases) {
+                if (db.name) {
+                  indexedDB.deleteDatabase(db.name);
+                  console.log('Deleted IndexedDB:', db.name);
+                }
+              }
+            } catch (e) {
+              // Some browsers don't support databases() method
+              console.log('Could not enumerate IndexedDB databases');
+            }
+          }
           
           // Small delay to ensure storage operations complete
           await new Promise(resolve => setTimeout(resolve, 100));
           
-          // Force reload from server (bypass cache)
-          window.location.href = '/?reset=' + Date.now();
+          // Use replace to prevent back button from restoring state
+          // and reload with cache bypass to ensure fresh start
+          window.location.replace('/');
+          
+          // Force hard reload to bypass any service workers or caches
+          if ('caches' in window) {
+            caches.keys().then(names => {
+              names.forEach(name => caches.delete(name));
+            });
+          }
         } catch (error) {
           console.error('Error clearing settings:', error);
           // Even if there's an error, try to navigate home

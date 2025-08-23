@@ -17,10 +17,11 @@ export class StorageDetector {
   // Keys that indicate a returning user
   private readonly STORAGE_KEYS = [
     'baigel:acknowledged',    // User has seen onboarding
-    'baigel:onboarding',      // Onboarding state
+    'baigel:onboarding',      // Onboarding state (Zustand persist)
     'baigel:settings',        // User settings
-    'connection-storage',     // Saved connections
-    'chat-store'             // Chat history
+    'connection-storage',     // Saved connections (Zustand persist)
+    'chat-store',            // Chat history
+    'baigel_workflow_services' // Workflow discovery cache
   ]
 
   /**
@@ -70,21 +71,81 @@ export class StorageDetector {
       return false
     }
 
-    // Check for any BAIGEL keys in localStorage
+    console.log('[StorageDetector] Checking for stored data...');
+
+    // Check for any BAIGEL keys in localStorage with actual content
     for (const key of this.STORAGE_KEYS) {
-      if (localStorage.getItem(key) !== null) {
-        return true
+      const value = localStorage.getItem(key);
+      if (value !== null) {
+        console.log(`[StorageDetector] Found key: ${key}, value:`, value.substring(0, 100));
+        // Check if the value has meaningful content
+        try {
+          const parsed = JSON.parse(value);
+          
+          // For Zustand stores, check if they have actual data
+          if (parsed && typeof parsed === 'object') {
+            // Check if it's a Zustand persist store
+            if ('state' in parsed && parsed.state) {
+              const state = parsed.state;
+              
+              // For connections store - check for actual connections
+              if (state.connections !== undefined) {
+                if (Array.isArray(state.connections) && state.connections.length > 0) {
+                  return true;
+                }
+                // Empty connections array - not a returning user
+                continue;
+              }
+              
+              // For onboarding store - check if user actually acknowledged
+              if (state.hasAcknowledged !== undefined) {
+                console.log(`[StorageDetector] Found hasAcknowledged: ${state.hasAcknowledged}`);
+                if (state.hasAcknowledged === true) {
+                  console.log('[StorageDetector] User has acknowledged - returning user');
+                  return true;
+                }
+                // hasAcknowledged is false - not a returning user
+                console.log('[StorageDetector] hasAcknowledged is false - new user');
+                continue;
+              }
+              
+              // For other stores with meaningful data
+              const hasContent = Object.keys(state).some(key => {
+                const value = state[key];
+                if (value === null || value === undefined || value === false || value === '') {
+                  return false;
+                }
+                if (Array.isArray(value) && value.length === 0) {
+                  return false;
+                }
+                if (typeof value === 'object' && Object.keys(value).length === 0) {
+                  return false;
+                }
+                return true;
+              });
+              
+              if (hasContent) {
+                return true;
+              }
+              
+              // Skip Zustand stores with only default/empty values
+              continue;
+            }
+            // For non-Zustand objects, check if they have content
+            if (Object.keys(parsed).length > 0) {
+              return true;
+            }
+          }
+        } catch {
+          // If it's not JSON, check if it's a non-empty string
+          if (value && value.trim().length > 0) {
+            return true;
+          }
+        }
       }
     }
 
-    // Also check for any keys starting with 'baigel:'
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)
-      if (key?.startsWith('baigel:')) {
-        return true
-      }
-    }
-
+    console.log('[StorageDetector] No meaningful data found - new user');
     return false
   }
 

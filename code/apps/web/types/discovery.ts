@@ -125,6 +125,7 @@ export const DISCOVERY_ENDPOINTS = {
     '/v1/models',
     '/tools/list',
     '/resources/list',
+    '/api/mcp/arxiv/tools',    // Specific endpoint for your server
   ],
   OpenAI: [
     '/v1/models',
@@ -132,10 +133,12 @@ export const DISCOVERY_ENDPOINTS = {
   ],
   Workflow: [
     '/openapi.json',
-    '/api/mcp/v0/servers',
+    '/api/mcp/v0/servers',    // Mastra MCP server list
     '/workflows/list',
     '/api/workflows',
     '/v1/workflows',
+    '/api/agents',            // Mastra agents
+    '/api/tools',             // Mastra standalone tools
   ],
   Registry: [
     '/agents/public',

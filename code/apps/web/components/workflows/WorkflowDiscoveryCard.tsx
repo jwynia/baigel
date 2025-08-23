@@ -11,10 +11,8 @@ import {
   FileJson,
   Play,
   Plus,
-  ChevronRight,
   Check,
-  AlertCircle,
-  Link as LinkIcon
+  AlertCircle
 } from 'lucide-react';
 import type { DiscoveredAgent } from '@/types/discovery';
 import { useConnectionStore } from '@/lib/stores/connections';
@@ -191,26 +189,22 @@ export function WorkflowDiscoveryCard({
             Explore Workflows
           </Button>
           
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleAddToConnections}
-            disabled={isAlreadyConnected}
-            title={isAlreadyConnected ? 'Already in connections' : 'Add to connection manager'}
-          >
-            <LinkIcon className="h-4 w-4" />
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              // TODO: Show workflow service details
-              console.log('Show details for:', service);
-            }}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          {isAlreadyConnected ? (
+            <Badge variant="default" className="bg-green-500 text-white px-3 py-1 flex items-center">
+              <Check className="h-3 w-3 mr-1" />
+              Added
+            </Badge>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAddToConnections}
+              title="Add to connection manager"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add
+            </Button>
+          )}
         </div>
 
         {/* Warning for missing schema support */}

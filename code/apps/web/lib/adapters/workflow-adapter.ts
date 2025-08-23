@@ -107,7 +107,7 @@ export abstract class BaseWorkflowAdapter implements WorkflowAdapter {
     return {
       executionId,
       workflowId: '', // Will be filled by specific adapter
-      success: status === 'completed',
+      success: (status as any) === 'completed',
       outputs: {},
       metadata: {
         startTime: new Date().toISOString(), // Will be filled by specific adapter
@@ -279,7 +279,7 @@ export abstract class BaseWorkflowAdapter implements WorkflowAdapter {
     }
     
     // Number validation
-    if ((schema.type === 'number' || schema.type === 'integer') && typeof value === 'number') {
+    if ((schema.type === 'number' || (schema as any).type === 'integer') && typeof value === 'number') {
       if (schema.minimum !== undefined && value < schema.minimum) {
         errors.push({
           field: path,

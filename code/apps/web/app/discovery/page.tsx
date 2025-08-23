@@ -6,94 +6,73 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { CheckCircle2, Info, Trash2, Menu, Search, Settings, Home, MessageSquare } from 'lucide-react';
-import Link from 'next/link';
+import { CheckCircle2, Info, Trash2 } from 'lucide-react';
 import type { AgentConfiguration } from '@/types/discovery';
+import { useConnectionStore } from '@/lib/stores/connections';
+import { agentConfigurationToConnection } from '@/lib/utils/discovery-to-connection';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 export default function DiscoveryPage() {
   const [addedAgents, setAddedAgents] = useState<AgentConfiguration[]>([]);
   const [lastAdded, setLastAdded] = useState<string | null>(null);
+  const { addConnection } = useConnectionStore();
 
   const handleAgentAdded = (config: AgentConfiguration) => {
+    // Add to local state for UI feedback
     setAddedAgents(prev => [...prev, config]);
     setLastAdded(config.name);
     setTimeout(() => setLastAdded(null), 3000);
+
+    // Add to connection store
+    try {
+      const connectionData = agentConfigurationToConnection(config);
+      addConnection(connectionData);
+    } catch (error) {
+      console.error('Failed to add connection:', error);
+    }
   };
 
   const handleMultipleAgentsAdded = (configs: AgentConfiguration[]) => {
+    // Add to local state for UI feedback
     setAddedAgents(prev => [...prev, ...configs]);
     setLastAdded(`${configs.length} agents`);
     setTimeout(() => setLastAdded(null), 3000);
+
+    // Add all to connection store
+    try {
+      configs.forEach(config => {
+        // Use full connection data if available (from Add All), otherwise convert
+        const configWithData = config as AgentConfiguration & { _fullConnectionData?: any };
+        const connectionData = configWithData._fullConnectionData || agentConfigurationToConnection(config);
+        addConnection(connectionData);
+      });
+    } catch (error) {
+      console.error('Failed to add connections:', error);
+    }
   };
 
   const handleRemoveAgent = (id: string) => {
     setAddedAgents(prev => prev.filter(agent => agent.id !== id));
+    // Note: This only removes from local UI state, not from connection store
+    // Users should manage actual connections in the Settings page
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Navigation Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9">
-                  <Menu className="h-5 w-5" />
-                  <span className="sr-only">Open menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuLabel>Navigation</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/" className="flex items-center">
-                    <Home className="mr-2 h-4 w-4" />
-                    <span>Home</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/chat" className="flex items-center">
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    <span>Chat</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/discovery" className="flex items-center">
-                    <Search className="mr-2 h-4 w-4" />
-                    <span>Discovery</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/settings" className="flex items-center">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            
-            <div>
-              <h1 className="text-lg font-semibold">Agent & Tool Discovery</h1>
-              <p className="text-sm text-muted-foreground">
-                Discover and configure AI agents and tools
-              </p>
-            </div>
+    <AppLayout>
+      <div className="h-full flex flex-col">
+        {/* Page Header */}
+        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4">
+          <div>
+            <h1 className="text-lg font-semibold">Agent & Tool Discovery</h1>
+            <p className="text-sm text-muted-foreground">
+              Discover and configure AI agents and tools
+            </p>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Content */}
-      <div className="container mx-auto py-8 space-y-6 flex-1">
+        {/* Main Content */}
+        <div className="flex-1 overflow-auto">
+          <div className="container mx-auto py-8 space-y-6">
         {/* Success Alert */}
         {lastAdded && (
           <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
@@ -179,7 +158,9 @@ export default function DiscoveryPage() {
             </p>
           </CardContent>
         </Card>
+          </div>
+        </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }

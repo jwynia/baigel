@@ -13,6 +13,15 @@ export interface BaseConnection {
   error?: string
   isDefault?: boolean
   tags?: string[]
+  // Store discovered capabilities/tools
+  tools?: Array<{
+    id: string
+    name: string
+    description?: string
+    inputSchema?: any
+    outputSchema?: any
+  }>
+  capabilities?: string[]
 }
 
 // Protocol-specific connection configurations

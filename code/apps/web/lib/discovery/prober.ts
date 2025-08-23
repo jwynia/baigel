@@ -122,25 +122,32 @@ async function probeEndpoint(
 }
 
 /**
- * Parse endpoint response into DiscoveredAgent
+ * Parse endpoint response into DiscoveredAgent(s)
+ * Returns an array to handle cases where one endpoint yields multiple agents
  */
 function parseEndpointResponse(
   endpoint: DiscoveredEndpoint, 
   baseUrl: string
-): DiscoveredAgent | null {
-  if (!endpoint.success || !endpoint.data) return null;
+): DiscoveredAgent[] {
+  if (!endpoint.success || !endpoint.data) return [];
 
   switch (endpoint.protocol) {
-    case 'A2A':
-      return parseA2AAgentCard(endpoint.data, baseUrl);
-    case 'MCP':
-      return parseMCPResponse(endpoint.data, baseUrl, endpoint.url);
-    case 'OpenAI':
-      return parseOpenAIResponse(endpoint.data, baseUrl);
+    case 'A2A': {
+      const agent = parseA2AAgentCard(endpoint.data, baseUrl);
+      return agent ? [agent] : [];
+    }
+    case 'MCP': {
+      const agent = parseMCPResponse(endpoint.data, baseUrl, endpoint.url);
+      return agent ? [agent] : [];
+    }
+    case 'OpenAI': {
+      const agent = parseOpenAIResponse(endpoint.data, baseUrl);
+      return agent ? [agent] : [];
+    }
     case 'Workflow':
       return parseWorkflowResponse(endpoint.data, baseUrl, endpoint.url);
     default:
-      return null;
+      return [];
   }
 }
 
@@ -218,9 +225,9 @@ export async function probeForAgents(config: ProbeConfig): Promise<ProbeResult> 
 
   for (const endpoint of discoveredEndpoints) {
     if (endpoint.success) {
-      const agent = parseEndpointResponse(endpoint, normalizedUrl);
-      if (agent) {
-        agents.push(agent);
+      const endpointAgents = parseEndpointResponse(endpoint, normalizedUrl);
+      if (endpointAgents.length > 0) {
+        agents.push(...endpointAgents);
       }
     } else if (endpoint.error && !isExpectedDiscoveryFailure(endpoint.error)) {
       // Only report unexpected errors, not normal exploration failures

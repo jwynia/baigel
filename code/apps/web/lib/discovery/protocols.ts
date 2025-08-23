@@ -60,12 +60,25 @@ export function parseA2AAgentCard(data: any, baseUrl: string): DiscoveredAgent |
  */
 export function parseMCPResponse(data: any, baseUrl: string, endpoint: string): DiscoveredAgent | null {
   try {
+    console.log('DEBUG - parseMCPResponse called with:', { endpoint, data });
+    
+    // Determine the MCP server base URL from the endpoint
+    let mcpBaseUrl = baseUrl;
+    let serverId = 'unknown';
+    
+    // If this is a Mastra MCP tools endpoint, extract the server ID and adjust baseUrl
+    const mcpMatch = endpoint.match(/\/api\/mcp\/([^/]+)\/tools/);
+    if (mcpMatch) {
+      serverId = mcpMatch[1];
+      mcpBaseUrl = `${baseUrl}/api/mcp/${serverId}`;
+    }
+    
     const agent: DiscoveredAgent = {
-      id: `mcp-${baseUrl.replace(/[^a-zA-Z0-9]/g, '-')}`,
-      name: data.name || 'MCP Server',
-      description: data.description || 'Model Context Protocol Server',
+      id: `mcp-${serverId}`,
+      name: data.name || `${serverId} Tools` || 'MCP Server',
+      description: data.description || `MCP Server: ${serverId}`,
       protocol: 'MCP',
-      baseUrl,
+      baseUrl: mcpBaseUrl,
       endpoints: [{
         url: endpoint,
         protocol: 'MCP',
@@ -86,16 +99,21 @@ export function parseMCPResponse(data: any, baseUrl: string, endpoint: string): 
 
     // Parse tools if present
     if (data.tools && Array.isArray(data.tools)) {
+      console.log('DEBUG - Found tools in data:', data.tools.length);
       agent.tools = data.tools.map((tool: any) => ({
         name: tool.name,
         description: tool.description,
         parameters: tool.inputSchema || tool.parameters
       }));
       agent.capabilities = data.tools.map((t: any) => t.name);
+      console.log('DEBUG - Mapped agent.tools:', agent.tools);
+    } else {
+      console.log('DEBUG - No tools found in data, data.tools:', data.tools);
     }
 
     // Parse resources if present
     if (data.resources && Array.isArray(data.resources)) {
+      if (!agent.capabilities) agent.capabilities = [];
       agent.capabilities.push(...data.resources.map((r: any) => `resource:${r.name}`));
     }
 
@@ -167,23 +185,56 @@ export function parseOpenAIResponse(data: any, baseUrl: string): DiscoveredAgent
 
 /**
  * Parse Workflow service response (Mastra, OpenAPI, etc.)
+ * Returns an array of agents for MCP server lists, single agent for other workflows
  */
-export function parseWorkflowResponse(data: any, baseUrl: string, endpoint: string): DiscoveredAgent | null {
+export function parseWorkflowResponse(data: any, baseUrl: string, endpoint: string): DiscoveredAgent[] {
   try {
+    // Detect Mastra MCP server list specifically
+    if (endpoint.includes('mcp/v0/servers') && data.servers && Array.isArray(data.servers)) {
+      return parseMastraServerList(data, baseUrl, endpoint);
+    }
+    
     let workflowService: DiscoveredWorkflowService;
     
-    // Detect workflow framework type
-    if (data.info?.title?.toLowerCase().includes('mastra') || endpoint.includes('mcp/v0/servers') || data.servers) {
-      // Mastra framework detection
+    // Skip generic API descriptions that don't provide actionable services
+    if (endpoint.includes('openapi.json')) {
+      // Check if this is a generic API spec without actionable workflow endpoints
+      const paths = data.paths || {};
+      const workflowPaths = Object.keys(paths).filter(path => 
+        path.includes('workflow') || path.includes('execute') || path.includes('trigger') || 
+        path.includes('tool') || path.includes('action')
+      );
+      
+      // Skip generic API specs like "Mastra API" that don't have actionable endpoints
+      if (workflowPaths.length === 0 || (data.info?.title === 'Mastra API' && workflowPaths.length < 3)) {
+        // This is likely a generic API description - skip it since we'll get 
+        // specific actionable services from more targeted endpoints
+        return [];
+      }
+    }
+    
+    // Detect other workflow framework types
+    if (data.info?.title?.toLowerCase().includes('mastra') || data.servers) {
+      // Mastra framework detection (single service)
       workflowService = parseMastraWorkflowService(data, baseUrl, endpoint);
     } else if (data.openapi || data.swagger) {
-      // Generic OpenAPI workflow service
+      // Generic OpenAPI workflow service - only if it has actionable workflows
+      const paths = data.paths || {};
+      const workflowPaths = Object.keys(paths).filter(path => 
+        path.includes('workflow') || path.includes('execute') || path.includes('trigger')
+      );
+      
+      // Skip if no actionable workflow endpoints
+      if (workflowPaths.length === 0) {
+        return [];
+      }
+      
       workflowService = parseOpenAPIWorkflowService(data, baseUrl, endpoint);
     } else if (data.workflows || Array.isArray(data)) {
       // Generic workflow list
       workflowService = parseGenericWorkflowService(data, baseUrl, endpoint);
     } else {
-      return null;
+      return [];
     }
     
     // Convert to DiscoveredAgent format for compatibility
@@ -213,11 +264,55 @@ export function parseWorkflowResponse(data: any, baseUrl: string, endpoint: stri
       }
     };
     
-    return agent;
+    return [agent];
   } catch (error) {
     console.error('Failed to parse workflow response:', error);
-    return null;
+    return [];
   }
+}
+
+/**
+ * Parse Mastra MCP server list into individual discovered agents
+ */
+function parseMastraServerList(data: any, baseUrl: string, endpoint: string): DiscoveredAgent[] {
+  const servers = data.servers || [];
+  const agents: DiscoveredAgent[] = [];
+  
+  for (const server of servers) {
+    const agent: DiscoveredAgent = {
+      id: `mcp-${server.id}`,
+      name: server.name || server.id,
+      description: server.description || `MCP Server: ${server.name || server.id}`,
+      protocol: 'MCP',
+      baseUrl: `${baseUrl}/api/mcp/${server.id}`,
+      endpoints: [{
+        url: endpoint,
+        protocol: 'MCP',
+        success: true,
+        data: server
+      }],
+      capabilities: [], // Will be populated when tools are loaded
+      tools: [], // Will be loaded from individual server tool endpoints
+      authentication: {
+        type: 'none',
+        required: false,
+        description: 'No authentication required for Mastra MCP servers'
+      },
+      transport: ['http'],
+      metadata: {
+        version: server.version_detail?.version || '1.0',
+        serverId: server.id,
+        releaseDate: server.version_detail?.release_date,
+        isLatest: server.version_detail?.is_latest,
+        mastraEndpoint: `${baseUrl}/api/mcp/${server.id}/tools`,
+        executionEndpoint: `${baseUrl}/api/mcp/${server.id}/tools/{toolId}/execute`
+      }
+    };
+    
+    agents.push(agent);
+  }
+  
+  return agents;
 }
 
 /**
@@ -402,6 +497,9 @@ function detectAuthType(schemes?: any[]): AuthenticationType {
  * Merge discovered agents from multiple endpoints
  */
 export function mergeDiscoveredAgents(agents: DiscoveredAgent[]): DiscoveredAgent[] {
+  console.log('DEBUG - mergeDiscoveredAgents input:', agents.length, 'agents');
+  agents.forEach((agent, i) => console.log(`  Agent ${i}: ${agent.name}, tools: ${agent.tools?.length || 0}`));
+  
   const merged = new Map<string, DiscoveredAgent>();
   
   for (const agent of agents) {
@@ -409,13 +507,27 @@ export function mergeDiscoveredAgents(agents: DiscoveredAgent[]): DiscoveredAgen
     const existing = merged.get(key);
     
     if (existing) {
+      console.log(`DEBUG - Merging agents: existing tools: ${existing.tools?.length || 0}, new tools: ${agent.tools?.length || 0}`);
+      
       // Merge endpoints
       existing.endpoints.push(...agent.endpoints);
       
-      // Merge tools (deduplicate by name)
-      const toolNames = new Set(existing.tools?.map(t => t.name) || []);
-      const newTools = agent.tools?.filter(t => !toolNames.has(t.name)) || [];
-      existing.tools = [...(existing.tools || []), ...newTools];
+      // Smart tool merging: prefer the agent with actual tools over empty arrays
+      const existingToolCount = existing.tools?.length || 0;
+      const newToolCount = agent.tools?.length || 0;
+      
+      if (existingToolCount === 0 && newToolCount > 0) {
+        // Existing has no tools, new has tools - use new tools
+        existing.tools = agent.tools;
+        console.log(`DEBUG - Replaced empty tools with ${newToolCount} tools from new agent`);
+      } else if (existingToolCount > 0 && newToolCount > 0) {
+        // Both have tools - merge and deduplicate
+        const toolNames = new Set(existing.tools?.map(t => t.name) || []);
+        const newTools = agent.tools?.filter(t => !toolNames.has(t.name)) || [];
+        existing.tools = [...(existing.tools || []), ...newTools];
+        console.log(`DEBUG - Merged tools: ${existingToolCount} + ${newTools.length} = ${existing.tools.length}`);
+      }
+      // If existing has tools and new doesn't, keep existing (no action needed)
       
       // Merge capabilities (deduplicate)
       const capSet = new Set([...(existing.capabilities || []), ...(agent.capabilities || [])]);
@@ -426,10 +538,61 @@ export function mergeDiscoveredAgents(agents: DiscoveredAgent[]): DiscoveredAgen
         const transportSet = new Set([...(existing.transport || []), ...agent.transport]);
         existing.transport = Array.from(transportSet) as any;
       }
+      
+      // Update name and description if the new agent has more specific information
+      if (newToolCount > existingToolCount) {
+        if (agent.name !== 'MCP Server') existing.name = agent.name;
+        if (agent.description && agent.description !== 'Model Context Protocol Server') {
+          existing.description = agent.description;
+        }
+      }
     } else {
       merged.set(key, agent);
     }
   }
   
-  return Array.from(merged.values());
+  const mergedAgents = Array.from(merged.values());
+  console.log('DEBUG - mergeDiscoveredAgents output:', mergedAgents.length, 'agents');
+  mergedAgents.forEach((agent, i) => console.log(`  Merged Agent ${i}: ${agent.name}, tools: ${agent.tools?.length || 0}`));
+  
+  // Filter out generic API entries when we have specific services
+  const filtered = filterGenericEntries(mergedAgents);
+  console.log('DEBUG - After filtering:', filtered.length, 'agents');
+  filtered.forEach((agent, i) => console.log(`  Filtered Agent ${i}: ${agent.name}, tools: ${agent.tools?.length || 0}`));
+  
+  return filtered;
+}
+
+/**
+ * Filter out generic API entries when specific services are available
+ */
+function filterGenericEntries(agents: DiscoveredAgent[]): DiscoveredAgent[] {
+  // Check if we have specific MCP servers from the same base URL
+  const baseUrls = new Set(agents.map(a => a.baseUrl.replace(/\/api\/mcp\/[^/]+$/, '')));
+  
+  const filtered = agents.filter(agent => {
+    // Skip generic "Workflow" agents that are just API wrappers when we have specific MCP servers
+    if (agent.protocol === 'Workflow' && 
+        (agent.name === 'Mastra Workflow Engine' || 
+         agent.name === 'Mastra API' ||
+         agent.name.includes('API'))) {
+      
+      // Check if we have specific MCP servers from the same base URL
+      const agentBaseUrl = agent.baseUrl;
+      const hasSpecificMCPServers = agents.some(other => 
+        other.protocol === 'MCP' && 
+        other.baseUrl.startsWith(agentBaseUrl) &&
+        other !== agent
+      );
+      
+      if (hasSpecificMCPServers) {
+        console.log(`Filtering out generic API entry: ${agent.name} because we have specific MCP servers`);
+        return false;
+      }
+    }
+    
+    return true;
+  });
+  
+  return filtered;
 }

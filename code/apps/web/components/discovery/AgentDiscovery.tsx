@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/collapsible';
 import { DiscoveryResults } from './DiscoveryResults';
 import { probeForAgents, isValidUrl, getExampleUrls } from '@/lib/discovery/prober';
+import { discoveredAgentToConnection } from '@/lib/utils/discovery-to-connection';
 import type { 
   ProbeResult, 
   DiscoveryStatus, 
@@ -141,6 +142,44 @@ export function AgentDiscovery({
     onMultipleAgentsAdded(configs);
     setSelectedAgents([]);
   }, [selectedAgents, result, onMultipleAgentsAdded]);
+
+  const handleAddAll = useCallback(() => {
+    console.log('DEBUG - handleAddAll called with result:', result);
+    if (!onMultipleAgentsAdded || !result) return;
+
+    // Use the same conversion as individual adds to preserve tool schemas
+    const configs: AgentConfiguration[] = result.agents.map(agent => {
+      console.log('DEBUG - Processing agent in handleAddAll:', agent.name, 'tools:', agent.tools?.length);
+      const connectionData = discoveredAgentToConnection(agent);
+      return {
+        id: agent.id,
+        name: agent.name,
+        enabled: true,
+        baseUrl: agent.baseUrl,
+        protocol: agent.protocol,
+        authentication: agent.authentication ? {
+          type: agent.authentication.type,
+          credentials: {}
+        } : undefined,
+        transport: agent.transport?.[0],
+        selectedTools: agent.tools?.map(t => t.name),
+        // Store the full connection data for proper conversion
+        _fullConnectionData: connectionData
+      } as AgentConfiguration & { _fullConnectionData: any };
+    });
+
+    onMultipleAgentsAdded(configs);
+    setSelectedAgents([]);
+  }, [result, onMultipleAgentsAdded]);
+
+  const handleSelectAll = useCallback(() => {
+    if (!result) return;
+    setSelectedAgents(result.agents.map(agent => agent.id));
+  }, [result]);
+
+  const handleDeselectAll = useCallback(() => {
+    setSelectedAgents([]);
+  }, []);
 
   const handleClearResults = useCallback(() => {
     setStatus('idle');
@@ -278,6 +317,9 @@ export function AgentDiscovery({
             onAddAgent={handleAddAgent}
             onToggleSelect={onMultipleAgentsAdded ? handleToggleSelect : undefined}
             onAddSelected={onMultipleAgentsAdded ? handleAddSelected : undefined}
+            onAddAll={onMultipleAgentsAdded ? handleAddAll : undefined}
+            onSelectAll={onMultipleAgentsAdded ? handleSelectAll : undefined}
+            onDeselectAll={onMultipleAgentsAdded ? handleDeselectAll : undefined}
             onClear={handleClearResults}
           />
         </CardContent>

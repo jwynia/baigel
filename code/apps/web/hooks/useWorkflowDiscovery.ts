@@ -189,12 +189,17 @@ export function useWorkflowDiscovery(options: UseWorkflowDiscoveryOptions = {}) 
       
       if (result.agents.length > 0) {
         const service = result.agents[0];
-        if (name) {
+        if (service && name) {
           service.name = name;
         }
-        addService(service);
-        return service;
-      } else {
+        if (service) {
+          addService(service);
+          return service;
+        }
+      }
+      
+      // If no service was found or the service was null, create a generic entry
+      {
         // If discovery doesn't find it as workflow, create a generic entry
         const genericService: DiscoveredAgent = {
           id: `workflow-${url.replace(/[^a-zA-Z0-9]/g, '-')}`,

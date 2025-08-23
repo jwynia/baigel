@@ -266,7 +266,7 @@ export class MastraAdapter extends BaseWorkflowAdapter {
       const duration = new Date(endTime).getTime() - new Date(startTime).getTime();
       
       const workflowError = error instanceof Error && 'type' in error 
-        ? error as WorkflowExecutionError
+        ? error as unknown as WorkflowExecutionError
         : this.createWorkflowError(
           'UNKNOWN_ERROR',
           error instanceof Error ? error.message : 'Unknown execution error',
@@ -521,7 +521,7 @@ export class MastraAdapter extends BaseWorkflowAdapter {
     if (parts.length !== 2) {
       throw new Error(`Invalid workflow ID format: ${workflowId}. Expected format: serverId:toolId`);
     }
-    return { serverId: parts[0], toolId: parts[1] };
+    return { serverId: parts[0]!, toolId: parts[1]! };
   }
 }
 

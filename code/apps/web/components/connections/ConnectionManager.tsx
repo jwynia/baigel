@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Settings, Trash2, TestTube, Play, Power } from 'lucide-react'
+import { Plus, Settings, Trash2, TestTube, Play, Power, Wrench, Zap } from 'lucide-react'
 import {
   Button,
   Card,
@@ -120,8 +120,20 @@ export function ConnectionManager() {
                         <span className="text-2xl">{metadata?.icon}</span>
                         {connection.name}
                       </CardTitle>
-                      <CardDescription>
-                        {metadata?.name || connection.protocol}
+                      <CardDescription className="flex items-center gap-2">
+                        <span>{metadata?.name || connection.protocol}</span>
+                        {connection.tools && connection.tools.length > 0 && (
+                          <Badge variant="outline" className="text-xs">
+                            <Wrench className="h-3 w-3 mr-1" />
+                            {connection.tools.length}
+                          </Badge>
+                        )}
+                        {Array.isArray(connection.capabilities) && connection.capabilities.length > 0 && (
+                          <Badge variant="outline" className="text-xs">
+                            <Zap className="h-3 w-3 mr-1" />
+                            {Array.isArray(connection.capabilities) ? connection.capabilities.length : 0}
+                          </Badge>
+                        )}
                       </CardDescription>
                     </div>
                     {getStatusBadge(connection.status)}
@@ -155,6 +167,24 @@ export function ConnectionManager() {
                           {new Date(connection.lastConnected).toLocaleString()}
                         </span>
                       </div>
+                    )}
+                    
+                    {/* Display tools and capabilities counts */}
+                    {(connection.tools || connection.capabilities) && (
+                      <>
+                        {connection.tools && connection.tools.length > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Tools:</span>
+                            <span className="font-medium">{connection.tools.length}</span>
+                          </div>
+                        )}
+                        {Array.isArray(connection.capabilities) && connection.capabilities.length > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Capabilities:</span>
+                            <span className="font-medium">{Array.isArray(connection.capabilities) ? connection.capabilities.length : 0}</span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 

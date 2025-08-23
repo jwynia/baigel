@@ -4,7 +4,9 @@ import React from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertCircle, CheckCircle2, Loader2, Search, XCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AlertCircle, CheckCircle2, Loader2, Search, XCircle, Plus, Check } from 'lucide-react';
 import { DiscoveryCard } from './DiscoveryCard';
 import type { ProbeResult, DiscoveredAgent, DiscoveryStatus } from '@/types/discovery';
 
@@ -15,6 +17,9 @@ interface DiscoveryResultsProps {
   onAddAgent: (agent: DiscoveredAgent) => void;
   onToggleSelect?: (agentId: string) => void;
   onAddSelected?: () => void;
+  onAddAll?: () => void;
+  onSelectAll?: () => void;
+  onDeselectAll?: () => void;
   onClear?: () => void;
 }
 
@@ -41,11 +46,16 @@ export function DiscoveryResults({
   onAddAgent,
   onToggleSelect,
   onAddSelected,
+  onAddAll,
+  onSelectAll,
+  onDeselectAll,
   onClear,
 }: DiscoveryResultsProps) {
   const hasResults = result && result.agents.length > 0;
   const hasErrors = result && result.errors.length > 0;
   const hasSelection = selectedAgents.length > 0;
+  const allSelected = hasResults && selectedAgents.length === result.agents.length;
+  const someSelected = hasSelection && !allSelected;
 
   if (status === 'idle') {
     return (
@@ -117,25 +127,63 @@ export function DiscoveryResults({
         </Alert>
       )}
 
-      {/* Action Bar */}
-      {(hasResults || hasSelection) && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            {hasSelection && (
-              <span>{selectedAgents.length} selected</span>
-            )}
-          </div>
-          <div className="flex gap-2">
-            {hasSelection && onAddSelected && (
-              <Button onClick={onAddSelected} size="sm">
-                Add {selectedAgents.length} Selected
-              </Button>
-            )}
-            {onClear && (
-              <Button onClick={onClear} variant="outline" size="sm">
-                Clear Results
-              </Button>
-            )}
+      {/* Bulk Actions Bar */}
+      {hasResults && (
+        <div className="border rounded-lg p-4 bg-muted/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {/* Select All Checkbox */}
+              {onToggleSelect && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        onSelectAll?.();
+                      } else {
+                        onDeselectAll?.();
+                      }
+                    }}
+                  />
+                  <span className="text-sm">
+                    {allSelected ? 'All selected' : someSelected ? 'Some selected' : 'Select all'}
+                  </span>
+                </div>
+              )}
+              
+              {/* Results Summary */}
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">
+                  {result.agents.length} {result.agents.length === 1 ? 'server' : 'servers'} found
+                </Badge>
+                {hasSelection && (
+                  <Badge variant="default">
+                    {selectedAgents.length} selected
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              {onAddAll && (
+                <Button onClick={onAddAll} size="sm" className="gap-1">
+                  <Plus className="h-4 w-4" />
+                  Add All ({result.agents.length})
+                </Button>
+              )}
+              {hasSelection && onAddSelected && (
+                <Button onClick={onAddSelected} size="sm" variant="default" className="gap-1">
+                  <Check className="h-4 w-4" />
+                  Add Selected ({selectedAgents.length})
+                </Button>
+              )}
+              {onClear && (
+                <Button onClick={onClear} variant="outline" size="sm">
+                  Clear Results
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}

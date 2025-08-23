@@ -32,69 +32,14 @@ interface ConnectionStore {
 
 const generateId = () => Math.random().toString(36).substr(2, 9)
 
-// Mock connection templates for demo
-const mockConnections: Connection[] = [
-  {
-    id: 'demo-mcp-1',
-    name: 'Local MCP Server',
-    protocol: 'mcp',
-    status: 'disconnected',
-    createdAt: new Date('2025-01-01'),
-    config: {
-      transport: 'stdio',
-      command: 'mcp-server',
-      args: ['--port', '3001'],
-      env: { DEBUG: 'true' }
-    },
-    capabilities: {
-      tools: true,
-      resources: true,
-      prompts: false
-    },
-    tags: ['local', 'development'],
-    isDefault: true
-  } as any,
-  {
-    id: 'demo-openai-1',
-    name: 'OpenAI GPT-4',
-    protocol: 'openai',
-    status: 'disconnected',
-    createdAt: new Date('2025-01-02'),
-    config: {
-      apiKey: 'sk-...',
-      model: 'gpt-4-turbo-preview',
-      maxTokens: 4096,
-      temperature: 0.7
-    },
-    tags: ['production', 'gpt-4']
-  } as any,
-  {
-    id: 'demo-agui-1',
-    name: 'AG-UI WebSocket',
-    protocol: 'ag-ui',
-    status: 'disconnected',
-    createdAt: new Date('2025-01-03'),
-    config: {
-      transport: 'websocket',
-      endpoint: 'wss://api.example.com/agent',
-      streaming: true,
-      reconnect: true,
-      reconnectInterval: 5000
-    },
-    features: {
-      streaming: true,
-      tools: true,
-      multiModal: false
-    },
-    tags: ['websocket', 'streaming']
-  } as any
-]
+// Mock connections removed - start with empty state for proper onboarding flow
+// Users should discover or manually add their own connections
 
 export const useConnectionStore = create<ConnectionStore>()(
   devtools(
     persist(
       (set, get) => ({
-        connections: mockConnections,
+        connections: [],  // Start with empty connections, not mock data
         activeConnectionId: null,
 
         addConnection: (connectionData) => {

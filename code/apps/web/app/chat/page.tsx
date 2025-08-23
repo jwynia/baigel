@@ -2,13 +2,14 @@
 
 import { ChatInterface } from '@/components/chat/ChatInterface'
 import { ChatProvider } from '@/components/chat/ChatProvider'
+import { AppLayout } from '@/components/layout/AppLayout'
 
 export default function ChatPage() {
   return (
-    <div className="h-screen flex flex-col">
+    <AppLayout>
       <ChatProvider>
         <ChatInterface />
       </ChatProvider>
-    </div>
+    </AppLayout>
   )
 }

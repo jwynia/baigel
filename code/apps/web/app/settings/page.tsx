@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSettingsStore } from '@/lib/stores/settings';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 export default function SettingsPage() {
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -117,7 +118,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <AppLayout>
+      <div className="h-full flex flex-col">
       {/* Navigation Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4">
         <div className="flex items-center justify-between">
@@ -171,7 +173,8 @@ export default function SettingsPage() {
       </header>
 
       {/* Main Content */}
-      <div className="container mx-auto py-8 space-y-6 flex-1">
+      <div className="flex-1 overflow-auto">
+        <div className="container mx-auto py-8 space-y-6">
         {/* Status Alert */}
         {importStatus !== 'idle' && (
           <Alert className={importStatus === 'success' ? 'border-green-500' : 'border-red-500'}>
@@ -483,7 +486,9 @@ export default function SettingsPage() {
             </CardContent>
           )}
         </Card>
+          </div>
+        </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }

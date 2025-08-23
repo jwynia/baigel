@@ -132,8 +132,8 @@ export function UniversalFormRenderer({
         }
       }
       
-      // Number validations
-      if ((schema.type === 'number' || schema.type === 'integer') && typeof data === 'number') {
+      // Number validations  
+      if ((schema.type === 'number' || (schema as any).type === 'integer') && typeof data === 'number') {
         if (schema.minimum !== undefined && data < schema.minimum) {
           errors.push({
             field: path || 'root',
@@ -170,14 +170,20 @@ export function UniversalFormRenderer({
     
     // Navigate to the parent object
     for (let i = 0; i < path.length - 1; i++) {
-      if (!current[path[i]]) {
-        current[path[i]] = {};
+      const key = path[i];
+      if (key && !current[key]) {
+        current[key] = {};
       }
-      current = current[path[i]];
+      if (key) {
+        current = current[key];
+      }
     }
     
     // Set the value
-    current[path[path.length - 1]] = value;
+    const lastKey = path[path.length - 1];
+    if (lastKey) {
+      current[lastKey] = value;
+    }
     
     onFormDataChange(newFormData);
   }, [formData, onFormDataChange]);
@@ -236,7 +242,7 @@ function FormField({ name, schema, value, onChange, disabled, path }: FieldProps
                     {schema.title || name}
                     {isRequired && <Badge variant="destructive" className="text-xs">Required</Badge>}
                     {schema.uiHints?.help && (
-                      <HelpCircle className="h-4 w-4 text-muted-foreground" title={schema.uiHints.help} />
+                      <HelpCircle className="h-4 w-4 text-muted-foreground" />
                     )}
                   </CardTitle>
                   {schema.description && (
@@ -284,7 +290,7 @@ function FormField({ name, schema, value, onChange, disabled, path }: FieldProps
           {schema.title || name}
           {isRequired && <Badge variant="destructive" className="text-xs">Required</Badge>}
           {schema.uiHints?.help && (
-            <HelpCircle className="h-4 w-4 text-muted-foreground" title={schema.uiHints.help} />
+            <HelpCircle className="h-4 w-4 text-muted-foreground" />
           )}
         </Label>
         {schema.description && (
@@ -358,14 +364,14 @@ function FormField({ name, schema, value, onChange, disabled, path }: FieldProps
         {schema.title || name}
         {isRequired && <Badge variant="destructive" className="text-xs">Required</Badge>}
         {schema.uiHints?.help && (
-          <HelpCircle className="h-4 w-4 text-muted-foreground" title={schema.uiHints.help} />
+          <HelpCircle className="h-4 w-4 text-muted-foreground" />
         )}
       </Label>
       {schema.description && (
         <p className="text-sm text-muted-foreground">{schema.description}</p>
       )}
       
-      {renderPrimitiveField(schema, value, onChange, disabled, inputId)}
+      {renderPrimitiveField(schema, value, onChange, disabled || false, inputId)}
     </div>
   );
 }
@@ -420,7 +426,7 @@ function renderPrimitiveField(
   }
 
   // Number fields
-  if (schema.type === 'number' || schema.type === 'integer') {
+  if (schema.type === 'number' || (schema as any).type === 'integer') {
     return (
       <Input
         id={inputId}
@@ -431,7 +437,7 @@ function renderPrimitiveField(
           if (val === '') {
             onChange(undefined);
           } else {
-            const num = schema.type === 'integer' ? parseInt(val) : parseFloat(val);
+            const num = (schema as any).type === 'integer' ? parseInt(val) : parseFloat(val);
             onChange(isNaN(num) ? undefined : num);
           }
         }}
@@ -439,7 +445,7 @@ function renderPrimitiveField(
         disabled={disabled}
         min={schema.minimum}
         max={schema.maximum}
-        step={schema.type === 'integer' ? 1 : 'any'}
+        step={(schema as any).type === 'integer' ? 1 : 'any'}
       />
     );
   }

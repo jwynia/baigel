@@ -2,23 +2,39 @@
  * Utilities to convert discovery results to connection configurations
  */
 
-import type { DiscoveredAgent } from '@/types/discovery';
+import type { DiscoveredAgent, AgentConfiguration } from '@/types/discovery';
 import type { Connection, ProtocolType } from '@/lib/types/connections';
 
 /**
  * Convert a discovered agent to a connection configuration
  */
 export function discoveredAgentToConnection(agent: DiscoveredAgent): Omit<Connection, 'id' | 'createdAt' | 'status'> {
+  console.log('DEBUG - Converting agent to connection:', agent.name)
+  console.log('DEBUG - Agent tools:', agent.tools)
+  console.log('DEBUG - Agent tools length:', agent.tools?.length || 0)
+  
   const baseConnection = {
     name: agent.name,
     protocol: mapProtocolType(agent.protocol),
     tags: ['discovered', ...(extractTags(agent))],
     isDefault: false,
+    // Include tools and capabilities
+    tools: agent.tools?.map(tool => ({
+      id: tool.name,
+      name: tool.name,
+      description: tool.description,
+      inputSchema: tool.parameters,
+      outputSchema: null, // Not typically provided in discovery
+    })),
+    capabilities: agent.capabilities,
   };
+  
+  console.log('DEBUG - Base connection tools:', baseConnection.tools)
+  console.log('DEBUG - Base connection tools length:', baseConnection.tools?.length || 0)
 
   switch (agent.protocol) {
     case 'MCP':
-      return {
+      const mcpConnection = {
         ...baseConnection,
         protocol: 'mcp' as const,
         config: {
@@ -34,6 +50,12 @@ export function discoveredAgentToConnection(agent: DiscoveredAgent): Omit<Connec
           prompts: agent.capabilities?.includes('prompts') || false,
         }
       } as any;
+      
+      console.log('DEBUG - Final MCP connection tools:', mcpConnection.tools)
+      console.log('DEBUG - Final MCP connection tools length:', mcpConnection.tools?.length || 0)
+      console.log('DEBUG - Final MCP connection object:', mcpConnection)
+      
+      return mcpConnection;
 
     case 'A2A':
       return {
@@ -215,4 +237,81 @@ function extractDomainTags(agent: DiscoveredAgent): string[] {
   }
   
   return tags;
+}
+
+/**
+ * Convert an AgentConfiguration to a Connection for adding to the connection store
+ */
+export function agentConfigurationToConnection(config: AgentConfiguration): Omit<Connection, 'id' | 'createdAt' | 'status'> {
+  const baseConnection = {
+    name: config.name,
+    protocol: mapProtocolType(config.protocol),
+    tags: ['discovered'],
+    isDefault: false,
+  };
+
+  switch (config.protocol) {
+    case 'MCP':
+      return {
+        ...baseConnection,
+        protocol: 'mcp' as const,
+        config: {
+          transport: 'http' as const,
+          url: config.baseUrl,
+          headers: config.authentication?.type === 'api-key' 
+            ? { 'Authorization': `Bearer ${config.authentication.credentials?.apiKey || ''}` }
+            : undefined,
+        },
+        capabilities: {
+          tools: true, // Assume tools are available for MCP servers
+          resources: false,
+          prompts: false,
+        }
+      } as any;
+
+    case 'A2A':
+      return {
+        ...baseConnection,
+        protocol: 'a2a' as const,
+        config: {
+          agentId: config.id,
+          endpoint: config.baseUrl,
+          identityCard: {
+            name: config.name,
+            description: `Discovered A2A agent: ${config.name}`,
+            capabilities: [],
+            trustScore: 8,
+          },
+          authentication: config.authentication ? {
+            type: config.authentication.type === 'none' ? 'none' : 
+                  config.authentication.type === 'api-key' ? 'api-key' : 'oauth',
+            apiKey: config.authentication.credentials?.apiKey,
+          } : { type: 'none' },
+        }
+      } as any;
+
+    case 'OpenAI':
+      return {
+        ...baseConnection,
+        protocol: 'openai' as const,
+        config: {
+          apiKey: config.authentication?.credentials?.apiKey || '',
+          baseUrl: config.baseUrl !== 'https://api.openai.com' ? config.baseUrl : undefined,
+          model: 'gpt-4-turbo-preview',
+          maxTokens: 4096,
+          temperature: 0.7,
+        }
+      } as any;
+
+    default:
+      // Fallback to MCP
+      return {
+        ...baseConnection,
+        protocol: 'mcp' as const,
+        config: {
+          transport: 'http' as const,
+          url: config.baseUrl,
+        }
+      } as any;
+  }
 }
