@@ -26,7 +26,8 @@ import {
 const DEFAULT_PROBE_CONFIG = {
   timeout: 5000,
   parallel: true,
-  protocols: ['A2A', 'MCP', 'OpenAI', 'Workflow'] as ProtocolType[],
+  // Prioritize standards-compliant aggregation before individual protocols
+  protocols: ['Workflow', 'A2A', 'MCP', 'OpenAI'] as ProtocolType[],
 };
 
 /**

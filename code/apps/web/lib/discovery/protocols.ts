@@ -299,7 +299,8 @@ function parseMastraServerList(data: any, baseUrl: string, endpoint: string): Di
         releaseDate: server.version_detail?.release_date,
         isLatest: server.version_detail?.is_latest,
         mastraEndpoint: `${baseUrl}/api/mcp/${server.id}/tools`,
-        executionEndpoint: `${baseUrl}/api/mcp/${server.id}/tools/{toolId}/execute`
+        mcpHttpEndpoint: `${baseUrl}/api/mcp/${server.id}/mcp`,
+        mcpSseEndpoint: `${baseUrl}/api/mcp/${server.id}/sse`
       }
     };
     

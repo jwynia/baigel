@@ -41,7 +41,9 @@ export function discoveredAgentToConnection(agent: DiscoveredAgent): Omit<Connec
           tools: agent.tools && agent.tools.length > 0,
           resources: agent.capabilities?.includes('resources') || false,
           prompts: agent.capabilities?.includes('prompts') || false,
-        }
+        },
+        // Preserve metadata for execution endpoints
+        metadata: agent.metadata
       } as any;
       
       return mcpConnection;
@@ -97,7 +99,9 @@ export function discoveredAgentToConnection(agent: DiscoveredAgent): Omit<Connec
           tools: true, // Workflows are tool-based
           resources: false,
           prompts: false,
-        }
+        },
+        // Preserve metadata for execution endpoints
+        metadata: agent.metadata
       } as any;
 
     default:
@@ -108,7 +112,9 @@ export function discoveredAgentToConnection(agent: DiscoveredAgent): Omit<Connec
         config: {
           transport: 'http' as const,
           url: agent.baseUrl,
-        }
+        },
+        // Preserve metadata for execution endpoints
+        metadata: agent.metadata
       } as any;
   }
 }

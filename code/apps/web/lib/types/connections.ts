@@ -22,6 +22,8 @@ export interface BaseConnection {
     outputSchema?: any
   }>
   capabilities?: string[]
+  // Store discovery metadata (execution endpoints, etc.)
+  metadata?: Record<string, any>
 }
 
 // Protocol-specific connection configurations

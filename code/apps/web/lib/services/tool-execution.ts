@@ -38,29 +38,156 @@ async function executeMCPTool(
   toolId: string,
   parameters: Record<string, any>
 ): Promise<any> {
-  const { config } = connection
+  const { config, metadata } = connection
   
   if (config.transport === 'http') {
-    const url = `${config.url}/tools/execute`
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...config.headers,
-      },
-      body: JSON.stringify({
-        tool: toolId,
-        arguments: parameters,
-      }),
-    })
-    
-    if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`Tool execution failed: ${error}`)
+    // Use proper MCP HTTP endpoint (JSON-RPC 2.0) if available
+    let url: string
+    if (metadata?.mcpHttpEndpoint) {
+      url = metadata.mcpHttpEndpoint
+    } else if (metadata?.executionEndpoint) {
+      // Fallback to Mastra tool API for backward compatibility
+      url = metadata.executionEndpoint.replace('{toolId}', toolId)
+    } else {
+      // Fallback for standard MCP servers
+      url = `${config.url}/tools/${toolId}/execute`
     }
     
-    return response.json()
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    
+    // Add authentication headers if configured
+    if (config.headers) {
+      Object.assign(headers, config.headers)
+    }
+    
+    // Determine which payload formats to try based on endpoint type
+    const isStandardMcp = metadata?.mcpHttpEndpoint
+    const payloadFormats = []
+    
+    if (isStandardMcp) {
+      // For proper MCP endpoints, use JSON-RPC 2.0 format first
+      payloadFormats.push({
+        jsonrpc: '2.0',
+        id: Date.now(), // Simple ID generation
+        method: 'tools/call',
+        params: {
+          name: toolId,
+          arguments: parameters,
+        },
+      })
+    } else {
+      // For Mastra tool API endpoints, use their format first
+      payloadFormats.push({
+        data: parameters,
+        runtimeContext: {},
+      })
+    }
+    
+    // Add fallback formats for compatibility
+    payloadFormats.push(
+      // Standard MCP tool call format
+      {
+        jsonrpc: '2.0',
+        id: Date.now(),
+        method: 'tools/call',
+        params: {
+          name: toolId,
+          arguments: parameters,
+        },
+      },
+      // Mastra format (for backward compatibility)
+      {
+        data: parameters,
+        runtimeContext: {},
+      },
+      // Legacy MCP format variations
+      {
+        tool: toolId,
+        arguments: parameters,
+      },
+      // Some servers expect parameters directly
+      parameters,
+      // Some servers expect context wrapper
+      {
+        context: parameters,
+      },
+      // MCP server might expect tool name and parameters separately
+      {
+        name: toolId,
+        parameters: parameters,
+      },
+      // Try with input field (some servers use this)
+      {
+        tool: toolId,
+        input: parameters,
+      },
+      // Try with request wrapper
+      {
+        request: {
+          name: toolId,
+          arguments: parameters,
+        },
+      },
+    )
+    
+    let lastError: Error | null = null
+    let allErrors: string[] = []
+    
+    // Try each payload format until one works
+    for (let i = 0; i < payloadFormats.length; i++) {
+      const payload = payloadFormats[i]
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload),
+        })
+        
+        if (response.ok) {
+          const responseData = await response.json()
+          
+          // Handle JSON-RPC 2.0 response format
+          if (responseData.jsonrpc === '2.0') {
+            if (responseData.error) {
+              throw new Error(`MCP Error (${responseData.error.code}): ${responseData.error.message}`)
+            }
+            return responseData.result
+          }
+          
+          // Handle non-JSON-RPC responses (Mastra tool API, etc.)
+          return responseData
+        }
+        
+        // Collect all errors for debugging
+        let errorMessage: string
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`
+        } catch {
+          errorMessage = await response.text() || `HTTP ${response.status}`
+        }
+        
+        allErrors.push(`Format ${i + 1}: ${errorMessage}`)
+        
+        // Store the error from the most likely correct format (first one)
+        if (!lastError) {
+          lastError = new Error(`Tool execution failed: ${errorMessage}`)
+        }
+      } catch (error) {
+        allErrors.push(`Format ${i + 1}: ${(error as Error).message}`)
+        if (!lastError) {
+          lastError = error as Error
+        }
+      }
+    }
+    
+    // If all formats failed, throw detailed error
+    const detailedError = new Error(
+      `All ${payloadFormats.length} payload formats failed. Errors: ${allErrors.join('; ')}`
+    )
+    throw detailedError
   }
   
   throw new Error('Only HTTP transport is currently supported for MCP tools')
@@ -213,17 +340,24 @@ export async function fetchToolsForConnection(connection: Connection): Promise<a
 }
 
 async function fetchMCPTools(connection: any): Promise<any[]> {
-  const { config } = connection
+  const { config, metadata } = connection
   
   if (config.transport === 'http') {
-    const url = `${config.url}/tools/list`
+    // Use tools endpoint from metadata if available (Mastra MCP servers)
+    const url = metadata?.mastraEndpoint || `${config.url}/tools`
+    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    
+    // Add authentication headers if configured
+    if (config.headers) {
+      Object.assign(headers, config.headers)
+    }
     
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...config.headers,
-      },
+      headers,
     })
     
     if (!response.ok) {

@@ -131,8 +131,8 @@ export const DISCOVERY_ENDPOINTS = {
     '/v1/chat/completions',
   ],
   Workflow: [
-    '/openapi.json',
-    '/api/mcp/v0/servers',    // Mastra MCP server list
+    '/api/mcp/v0/servers',    // Standards-compliant MCP aggregator (highest priority)
+    '/openapi.json',          // OpenAPI specification standard
     '/workflows/list',
     '/api/workflows',
     '/v1/workflows',
