@@ -125,7 +125,6 @@ export const DISCOVERY_ENDPOINTS = {
     '/v1/models',
     '/tools/list',
     '/resources/list',
-    '/api/mcp/arxiv/tools',    // Specific endpoint for your server
   ],
   OpenAI: [
     '/v1/models',

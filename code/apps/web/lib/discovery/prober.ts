@@ -52,6 +52,81 @@ function isExpectedDiscoveryFailure(error: string): boolean {
 }
 
 /**
+ * Enrich MCP servers with their tools by fetching from individual tool endpoints
+ */
+async function enrichMCPServersWithTools(
+  agents: DiscoveredAgent[], 
+  baseUrl: string, 
+  timeout: number,
+  headers?: Record<string, string>
+): Promise<DiscoveredAgent[]> {
+  const enrichedAgents = [...agents];
+  
+  // Find MCP servers that might need tool enrichment
+  const mcpServersToEnrich = agents.filter(agent => 
+    agent.protocol === 'MCP' && 
+    (!agent.tools || agent.tools.length === 0) &&
+    agent.metadata?.serverId // This indicates it came from a Mastra server list
+  );
+  
+  if (mcpServersToEnrich.length === 0) {
+    return enrichedAgents;
+  }
+  
+  console.log(`DEBUG - Enriching ${mcpServersToEnrich.length} MCP servers with tools`);
+  
+  // Fetch tools for each MCP server
+  const toolsPromises = mcpServersToEnrich.map(async (server) => {
+    const serverId = server.metadata?.serverId;
+    if (!serverId) return null;
+    
+    const toolsEndpoint = `${baseUrl}/api/mcp/${serverId}/tools`;
+    console.log(`DEBUG - Fetching tools for ${serverId} from ${toolsEndpoint}`);
+    
+    try {
+      const endpoint = await probeEndpoint(baseUrl, `/api/mcp/${serverId}/tools`, 'MCP', timeout, headers);
+      if (endpoint.success && endpoint.data) {
+        // Parse the tools response
+        const toolsAgent = parseMCPResponse(endpoint.data, baseUrl, toolsEndpoint);
+        return { serverId, toolsAgent };
+      }
+    } catch (error) {
+      console.log(`DEBUG - Failed to fetch tools for ${serverId}:`, error);
+    }
+    
+    return null;
+  });
+  
+  const toolsResults = await Promise.all(toolsPromises);
+  
+  // Update the original agents with their tools
+  for (const result of toolsResults) {
+    if (result && result.toolsAgent) {
+      const originalIndex = enrichedAgents.findIndex(agent => 
+        agent.metadata?.serverId === result.serverId
+      );
+      
+      if (originalIndex >= 0) {
+        const original = enrichedAgents[originalIndex];
+        console.log(`DEBUG - Enriching ${original.name} with ${result.toolsAgent.tools?.length || 0} tools`);
+        
+        // Merge the tools into the original agent
+        enrichedAgents[originalIndex] = {
+          ...original,
+          tools: result.toolsAgent.tools || [],
+          capabilities: [
+            ...(original.capabilities || []),
+            ...(result.toolsAgent.capabilities || [])
+          ]
+        };
+      }
+    }
+  }
+  
+  return enrichedAgents;
+}
+
+/**
  * Probe a single endpoint
  */
 async function probeEndpoint(
@@ -239,8 +314,11 @@ export async function probeForAgents(config: ProbeConfig): Promise<ProbeResult> 
     }
   }
 
-  // Merge agents discovered from multiple endpoints
-  const mergedAgents = mergeDiscoveredAgents(agents);
+  // Phase 2: Fetch tools for MCP servers discovered from Mastra server lists
+  const enrichedAgents = await enrichMCPServersWithTools(agents, normalizedUrl, timeout, headers);
+  
+  // Merge agents discovered from multiple endpoints (including enriched ones)
+  const mergedAgents = mergeDiscoveredAgents(enrichedAgents);
 
   const duration = Date.now() - startTime;
   
