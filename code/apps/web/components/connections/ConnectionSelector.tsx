@@ -47,22 +47,29 @@ export function ConnectionSelector() {
         // Set connecting state immediately for UI feedback
         setConnectingId(connection.id);
         
-        // Disconnect any currently connected connections (only one at a time)
+        // Connect the selected connection first
+        await connectToService(connection);
+        
+        // Then disconnect any other connected connections (to avoid flash)
         for (const conn of connections) {
           if (conn.status === 'connected' && conn.id !== connection.id) {
             await disconnectFromService(conn.id);
           }
         }
-        
-        // Connect the selected connection
-        await connectToService(connection);
       } finally {
         // Clear connecting state
         setConnectingId(null);
       }
     } else if (connection.status === 'connected') {
-      // Just set as active if already connected
+      // Set as active first, then disconnect others (to avoid flash)
       setActiveConnection(connection.id);
+      
+      // Disconnect other connections in background
+      for (const conn of connections) {
+        if (conn.status === 'connected' && conn.id !== connection.id) {
+          disconnectFromService(conn.id); // Don't await - run in background
+        }
+      }
     }
   }
   

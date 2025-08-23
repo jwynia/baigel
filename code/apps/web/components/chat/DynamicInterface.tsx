@@ -25,8 +25,9 @@ export function DynamicInterface() {
   // All hooks must be called at the top level before any conditional logic
   const { sendMessage } = useChat()
   const { isStreaming, messages } = useChatStore()
-  const { getActiveConnection, connections } = useConnectionStore()
+  const { getActiveConnection, connections, activeConnectionId } = useConnectionStore()
   const [selectedTool, setSelectedTool] = useState<any>(null)
+  const [previousConnectionId, setPreviousConnectionId] = useState<string | null>(null)
   
   const activeConnection = getActiveConnection()
   const hasConnections = connections && connections.length > 0
@@ -50,6 +51,16 @@ export function DynamicInterface() {
     }
   }, [activeConnection, interfaceType, defaultTab])
   
+  // Debug connection state changes
+  useEffect(() => {
+    if (activeConnectionId !== previousConnectionId) {
+      console.log('DEBUG - Connection ID changed:', previousConnectionId, '->', activeConnectionId)
+      console.log('DEBUG - Active connection object:', activeConnection)
+      console.log('DEBUG - Available connections count:', connections?.length || 0)
+      setPreviousConnectionId(activeConnectionId)
+    }
+  }, [activeConnectionId, previousConnectionId])
+
   // Update active tab when connection changes
   useEffect(() => {
     if (activeConnection) {
@@ -122,6 +133,17 @@ function NoActiveConnectionState() {
         Choose an AI agent or service to start chatting or using tools.
       </p>
       <ConnectionSelector />
+    </div>
+  )
+}
+
+function ConnectionTransitionState() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full p-8">
+      <div className="flex items-center gap-3">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <p className="text-lg">Loading connection...</p>
+      </div>
     </div>
   )
 }
