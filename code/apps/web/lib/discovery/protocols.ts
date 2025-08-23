@@ -60,8 +60,6 @@ export function parseA2AAgentCard(data: any, baseUrl: string): DiscoveredAgent |
  */
 export function parseMCPResponse(data: any, baseUrl: string, endpoint: string): DiscoveredAgent | null {
   try {
-    console.log('DEBUG - parseMCPResponse called with:', { endpoint, data });
-    
     // Determine the MCP server base URL from the endpoint
     let mcpBaseUrl = baseUrl;
     let serverId = 'unknown';
@@ -99,16 +97,12 @@ export function parseMCPResponse(data: any, baseUrl: string, endpoint: string): 
 
     // Parse tools if present
     if (data.tools && Array.isArray(data.tools)) {
-      console.log('DEBUG - Found tools in data:', data.tools.length);
       agent.tools = data.tools.map((tool: any) => ({
         name: tool.name,
         description: tool.description,
         parameters: tool.inputSchema || tool.parameters
       }));
       agent.capabilities = data.tools.map((t: any) => t.name);
-      console.log('DEBUG - Mapped agent.tools:', agent.tools);
-    } else {
-      console.log('DEBUG - No tools found in data, data.tools:', data.tools);
     }
 
     // Parse resources if present
@@ -497,9 +491,6 @@ function detectAuthType(schemes?: any[]): AuthenticationType {
  * Merge discovered agents from multiple endpoints
  */
 export function mergeDiscoveredAgents(agents: DiscoveredAgent[]): DiscoveredAgent[] {
-  console.log('DEBUG - mergeDiscoveredAgents input:', agents.length, 'agents');
-  agents.forEach((agent, i) => console.log(`  Agent ${i}: ${agent.name}, tools: ${agent.tools?.length || 0}`));
-  
   const merged = new Map<string, DiscoveredAgent>();
   
   for (const agent of agents) {
@@ -507,8 +498,6 @@ export function mergeDiscoveredAgents(agents: DiscoveredAgent[]): DiscoveredAgen
     const existing = merged.get(key);
     
     if (existing) {
-      console.log(`DEBUG - Merging agents: existing tools: ${existing.tools?.length || 0}, new tools: ${agent.tools?.length || 0}`);
-      
       // Merge endpoints
       existing.endpoints.push(...agent.endpoints);
       
@@ -519,13 +508,11 @@ export function mergeDiscoveredAgents(agents: DiscoveredAgent[]): DiscoveredAgen
       if (existingToolCount === 0 && newToolCount > 0) {
         // Existing has no tools, new has tools - use new tools
         existing.tools = agent.tools;
-        console.log(`DEBUG - Replaced empty tools with ${newToolCount} tools from new agent`);
       } else if (existingToolCount > 0 && newToolCount > 0) {
         // Both have tools - merge and deduplicate
         const toolNames = new Set(existing.tools?.map(t => t.name) || []);
         const newTools = agent.tools?.filter(t => !toolNames.has(t.name)) || [];
         existing.tools = [...(existing.tools || []), ...newTools];
-        console.log(`DEBUG - Merged tools: ${existingToolCount} + ${newTools.length} = ${existing.tools.length}`);
       }
       // If existing has tools and new doesn't, keep existing (no action needed)
       
@@ -552,15 +539,9 @@ export function mergeDiscoveredAgents(agents: DiscoveredAgent[]): DiscoveredAgen
   }
   
   const mergedAgents = Array.from(merged.values());
-  console.log('DEBUG - mergeDiscoveredAgents output:', mergedAgents.length, 'agents');
-  mergedAgents.forEach((agent, i) => console.log(`  Merged Agent ${i}: ${agent.name}, tools: ${agent.tools?.length || 0}`));
   
   // Filter out generic API entries when we have specific services
-  const filtered = filterGenericEntries(mergedAgents);
-  console.log('DEBUG - After filtering:', filtered.length, 'agents');
-  filtered.forEach((agent, i) => console.log(`  Filtered Agent ${i}: ${agent.name}, tools: ${agent.tools?.length || 0}`));
-  
-  return filtered;
+  return filterGenericEntries(mergedAgents);
 }
 
 /**

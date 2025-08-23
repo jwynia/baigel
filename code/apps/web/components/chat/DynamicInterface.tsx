@@ -37,26 +37,9 @@ export function DynamicInterface() {
   const defaultTab = activeConnection ? getDefaultTab(activeConnection) : 'chat'
   const [activeTab, setActiveTab] = useState<'chat' | 'tools'>('chat')
   
-  // Debug logging to see what's happening
-  useEffect(() => {
-    if (activeConnection) {
-      console.log('Debug - Active Connection:', {
-        name: activeConnection.name,
-        protocol: activeConnection.protocol,
-        tools: activeConnection.tools?.length || 0,
-        toolsWithSchema: activeConnection.tools?.filter(t => t.inputSchema).length || 0,
-        interfaceType,
-        defaultTab
-      })
-    }
-  }, [activeConnection, interfaceType, defaultTab])
-  
-  // Debug connection state changes
+  // Track connection changes for tab management
   useEffect(() => {
     if (activeConnectionId !== previousConnectionId) {
-      console.log('DEBUG - Connection ID changed:', previousConnectionId, '->', activeConnectionId)
-      console.log('DEBUG - Active connection object:', activeConnection)
-      console.log('DEBUG - Available connections count:', connections?.length || 0)
       setPreviousConnectionId(activeConnectionId)
     }
   }, [activeConnectionId, previousConnectionId])

@@ -9,10 +9,6 @@ import type { Connection, ProtocolType } from '@/lib/types/connections';
  * Convert a discovered agent to a connection configuration
  */
 export function discoveredAgentToConnection(agent: DiscoveredAgent): Omit<Connection, 'id' | 'createdAt' | 'status'> {
-  console.log('DEBUG - Converting agent to connection:', agent.name)
-  console.log('DEBUG - Agent tools:', agent.tools)
-  console.log('DEBUG - Agent tools length:', agent.tools?.length || 0)
-  
   const baseConnection = {
     name: agent.name,
     protocol: mapProtocolType(agent.protocol),
@@ -28,9 +24,6 @@ export function discoveredAgentToConnection(agent: DiscoveredAgent): Omit<Connec
     })),
     capabilities: agent.capabilities,
   };
-  
-  console.log('DEBUG - Base connection tools:', baseConnection.tools)
-  console.log('DEBUG - Base connection tools length:', baseConnection.tools?.length || 0)
 
   switch (agent.protocol) {
     case 'MCP':
@@ -50,10 +43,6 @@ export function discoveredAgentToConnection(agent: DiscoveredAgent): Omit<Connec
           prompts: agent.capabilities?.includes('prompts') || false,
         }
       } as any;
-      
-      console.log('DEBUG - Final MCP connection tools:', mcpConnection.tools)
-      console.log('DEBUG - Final MCP connection tools length:', mcpConnection.tools?.length || 0)
-      console.log('DEBUG - Final MCP connection object:', mcpConnection)
       
       return mcpConnection;
 

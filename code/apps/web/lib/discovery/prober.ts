@@ -73,15 +73,12 @@ async function enrichMCPServersWithTools(
     return enrichedAgents;
   }
   
-  console.log(`DEBUG - Enriching ${mcpServersToEnrich.length} MCP servers with tools`);
-  
   // Fetch tools for each MCP server
   const toolsPromises = mcpServersToEnrich.map(async (server) => {
     const serverId = server.metadata?.serverId;
     if (!serverId) return null;
     
     const toolsEndpoint = `${baseUrl}/api/mcp/${serverId}/tools`;
-    console.log(`DEBUG - Fetching tools for ${serverId} from ${toolsEndpoint}`);
     
     try {
       const endpoint = await probeEndpoint(baseUrl, `/api/mcp/${serverId}/tools`, 'MCP', timeout, headers);
@@ -91,7 +88,7 @@ async function enrichMCPServersWithTools(
         return { serverId, toolsAgent };
       }
     } catch (error) {
-      console.log(`DEBUG - Failed to fetch tools for ${serverId}:`, error);
+      // Silently handle tool fetching errors - not all servers may have tools
     }
     
     return null;
@@ -108,7 +105,6 @@ async function enrichMCPServersWithTools(
       
       if (originalIndex >= 0) {
         const original = enrichedAgents[originalIndex];
-        console.log(`DEBUG - Enriching ${original.name} with ${result.toolsAgent.tools?.length || 0} tools`);
         
         // Merge the tools into the original agent
         enrichedAgents[originalIndex] = {
