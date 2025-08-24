@@ -3,6 +3,11 @@
  */
 
 import type { Connection } from '@/lib/types/connections'
+import { 
+  initializeMCPSession, 
+  getActiveSession, 
+  executeToolInSession 
+} from './mcp-session'
 
 export async function executeToolInConnection(
   connection: Connection,
@@ -41,11 +46,26 @@ async function executeMCPTool(
   const { config, metadata } = connection
   
   if (config.transport === 'http') {
-    // Use proper MCP HTTP endpoint (JSON-RPC 2.0) if available
-    let url: string
+    // For proper MCP endpoints, use session-based execution
     if (metadata?.mcpHttpEndpoint) {
-      url = metadata.mcpHttpEndpoint
-    } else if (metadata?.executionEndpoint) {
+      try {
+        // Get or create MCP session
+        let session = getActiveSession(connection)
+        if (!session) {
+          session = await initializeMCPSession(connection)
+        }
+        
+        // Execute tool within the session
+        return await executeToolInSession(session, toolId, parameters)
+      } catch (error) {
+        console.warn('MCP session execution failed, falling back to direct call:', error)
+        // Fall through to legacy execution
+      }
+    }
+    
+    // Legacy execution for backward compatibility with Mastra tool API and other endpoints
+    let url: string
+    if (metadata?.executionEndpoint) {
       // Fallback to Mastra tool API for backward compatibility
       url = metadata.executionEndpoint.replace('{toolId}', toolId)
     } else {
@@ -62,31 +82,13 @@ async function executeMCPTool(
       Object.assign(headers, config.headers)
     }
     
-    // Determine which payload formats to try based on endpoint type
-    const isStandardMcp = metadata?.mcpHttpEndpoint
-    const payloadFormats = []
-    
-    if (isStandardMcp) {
-      // For proper MCP endpoints, use JSON-RPC 2.0 format first
-      payloadFormats.push({
-        jsonrpc: '2.0',
-        id: Date.now(), // Simple ID generation
-        method: 'tools/call',
-        params: {
-          name: toolId,
-          arguments: parameters,
-        },
-      })
-    } else {
-      // For Mastra tool API endpoints, use their format first
-      payloadFormats.push({
+    // Try different payload formats for backward compatibility
+    const payloadFormats = [
+      // Mastra tool API format (most common for discovered servers)
+      {
         data: parameters,
         runtimeContext: {},
-      })
-    }
-    
-    // Add fallback formats for compatibility
-    payloadFormats.push(
+      },
       // Standard MCP tool call format
       {
         jsonrpc: '2.0',
@@ -96,11 +98,6 @@ async function executeMCPTool(
           name: toolId,
           arguments: parameters,
         },
-      },
-      // Mastra format (for backward compatibility)
-      {
-        data: parameters,
-        runtimeContext: {},
       },
       // Legacy MCP format variations
       {
@@ -130,7 +127,7 @@ async function executeMCPTool(
           arguments: parameters,
         },
       },
-    )
+    ]
     
     let lastError: Error | null = null
     let allErrors: string[] = []
@@ -343,7 +340,24 @@ async function fetchMCPTools(connection: any): Promise<any[]> {
   const { config, metadata } = connection
   
   if (config.transport === 'http') {
-    // Use tools endpoint from metadata if available (Mastra MCP servers)
+    // For proper MCP endpoints, use session-based tool discovery
+    if (metadata?.mcpHttpEndpoint) {
+      try {
+        // Get or create MCP session
+        let session = getActiveSession(connection)
+        if (!session) {
+          session = await initializeMCPSession(connection)
+        }
+        
+        // Return tools from session (already fetched during initialization)
+        return session.tools || []
+      } catch (error) {
+        console.warn('MCP session tool discovery failed, falling back to direct call:', error)
+        // Fall through to legacy discovery
+      }
+    }
+    
+    // Legacy tool discovery for Mastra and other endpoints
     const url = metadata?.mastraEndpoint || `${config.url}/tools`
     
     const headers: Record<string, string> = {
