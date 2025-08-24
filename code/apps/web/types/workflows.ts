@@ -8,7 +8,7 @@
  */
 
 // Re-export from discovery types for workflow-specific extensions
-import type { ProtocolAdapter, AuthenticationType } from './discovery';
+import type { AuthenticationType } from './discovery';
 
 /**
  * Standard JSON Schema representation used internally by BAIGEL
@@ -353,7 +353,7 @@ export interface FrameworkMetadata {
  * Universal workflow adapter interface
  * All framework-specific adapters must implement this interface
  */
-export interface WorkflowAdapter extends ProtocolAdapter {
+export interface WorkflowAdapter {
   // Adapter identification
   readonly name: string;
   readonly version: string;
@@ -473,24 +473,4 @@ export interface WorkflowSystemConfig {
 /**
  * Export types for external use
  */
-export type {
-  // Core workflow types
-  StandardWorkflowDefinition,
-  WorkflowExecutionRequest,
-  WorkflowExecutionResult,
-  
-  // Schema types
-  StandardJSONSchema,
-  
-  // Adapter types
-  WorkflowAdapter,
-  AdapterRegistry,
-  
-  // Discovery types
-  DiscoveredWorkflowService,
-  
-  // Utility types
-  ValidationResult,
-  WorkflowFeature,
-  ExecutionStatus,
-};
+// All types are already exported via individual export statements above

@@ -41,7 +41,7 @@ export interface MCPConnection extends BaseConnection {
     headers?: Record<string, string>
     apiKey?: string
   }
-  capabilities?: {
+  mcpCapabilities?: {
     tools?: boolean
     resources?: boolean
     prompts?: boolean

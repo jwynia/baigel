@@ -106,17 +106,131 @@ async function enrichMCPServersWithTools(
       
       if (originalIndex >= 0) {
         const original = enrichedAgents[originalIndex];
+        if (!original) continue;
         
-        // Merge the tools into the original agent
-        enrichedAgents[originalIndex] = {
-          ...original,
-          tools: result.toolsAgent.tools || [],
+        // Merge the tools into the original agent - ensure all required fields are present
+        const updatedAgent: DiscoveredAgent = {
+          id: original.id,
+          name: original.name,
+          description: original.description,
+          protocol: original.protocol,
+          baseUrl: original.baseUrl,
+          endpoints: original.endpoints,
           capabilities: [
             ...(original.capabilities || []),
-            ...(result.toolsAgent.capabilities || [])
-          ]
+            ...(result.toolsAgent?.capabilities || [])
+          ],
+          tools: result.toolsAgent?.tools || original.tools || [],
+          authentication: original.authentication,
+          transport: original.transport,
+          metadata: original.metadata
         };
+        
+        enrichedAgents[originalIndex] = updatedAgent;
       }
+    }
+  }
+  
+  return enrichedAgents;
+}
+
+/**
+ * Enrich Mastra agents with their A2A agent cards
+ * Fetches detailed capabilities and skills from /.well-known/{agentId}/agent-card.json
+ */
+async function enrichAgentsWithA2ACards(
+  agents: DiscoveredAgent[], 
+  baseUrl: string, 
+  timeout: number,
+  headers?: Record<string, string>
+): Promise<DiscoveredAgent[]> {
+  const enrichedAgents = [...agents];
+  
+  // Find agents that might need A2A enrichment
+  const agentsToEnrich = agents.filter(agent => 
+    agent.protocol === 'A2A' && 
+    agent.metadata?.agentId && // This indicates it came from a Mastra agent list
+    agent.metadata?.wellKnownCard // Has the agent card URL
+  );
+  
+  if (agentsToEnrich.length === 0) {
+    return enrichedAgents;
+  }
+  
+  // Fetch A2A agent cards for each agent
+  const cardPromises = agentsToEnrich.map(async (agent) => {
+    const agentId = agent.metadata?.agentId;
+    const cardUrl = agent.metadata?.wellKnownCard;
+    if (!agentId || !cardUrl) return null;
+    
+    try {
+      const response = await fetch(cardUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          ...headers,
+        },
+        signal: AbortSignal.timeout(timeout),
+      });
+      
+      if (!response.ok) {
+        console.warn(`Failed to fetch A2A agent card for ${agentId}: ${response.status}`);
+        return null;
+      }
+      
+      const cardData = await response.json();
+      
+      // Parse the agent card using existing A2A parser
+      const enrichedAgent = parseA2AAgentCard(cardData, baseUrl);
+      if (!enrichedAgent) return null;
+      
+      return {
+        agentId,
+        cardData,
+        enrichedAgent
+      };
+    } catch (error) {
+      console.warn(`Error fetching A2A agent card for ${agentId}:`, error);
+      return null;
+    }
+  });
+  
+  const cardResults = await Promise.all(cardPromises);
+  
+  // Apply enrichment to agents
+  for (const result of cardResults) {
+    if (!result) continue;
+    
+    const { agentId, cardData, enrichedAgent } = result;
+    const agentIndex = enrichedAgents.findIndex(agent => agent.metadata?.agentId === agentId);
+    
+    if (agentIndex !== -1) {
+      const originalAgent = enrichedAgents[agentIndex];
+      if (!originalAgent) continue;
+      
+      // Create updated agent with explicit types to avoid optional field issues
+      const updatedAgent: DiscoveredAgent = {
+        id: originalAgent.id,
+        name: originalAgent.name,
+        description: originalAgent.description,
+        protocol: originalAgent.protocol,
+        baseUrl: originalAgent.baseUrl,
+        endpoints: originalAgent.endpoints,
+        capabilities: enrichedAgent.capabilities || originalAgent.capabilities,
+        tools: enrichedAgent.tools || originalAgent.tools,
+        authentication: enrichedAgent.authentication || originalAgent.authentication,
+        transport: originalAgent.transport,
+        // Preserve original metadata but add card data
+        metadata: {
+          ...originalAgent.metadata,
+          a2aCard: cardData,
+          capabilities: cardData.capabilities,
+          inputModes: cardData.defaultInputModes,
+          outputModes: cardData.defaultOutputModes,
+        }
+      };
+      
+      enrichedAgents[agentIndex] = updatedAgent;
     }
   }
   
@@ -312,10 +426,13 @@ export async function probeForAgents(config: ProbeConfig): Promise<ProbeResult> 
   }
 
   // Phase 2: Fetch tools for MCP servers discovered from Mastra server lists
-  const enrichedAgents = await enrichMCPServersWithTools(agents, normalizedUrl, timeout, headers);
+  const mcpEnrichedAgents = await enrichMCPServersWithTools(agents, normalizedUrl, timeout, headers);
+  
+  // Phase 3: Fetch A2A agent cards for agents discovered from Mastra agent lists
+  const fullyEnrichedAgents = await enrichAgentsWithA2ACards(mcpEnrichedAgents, normalizedUrl, timeout, headers);
   
   // Merge agents discovered from multiple endpoints (including enriched ones)
-  const mergedAgents = mergeDiscoveredAgents(enrichedAgents);
+  const mergedAgents = mergeDiscoveredAgents(fullyEnrichedAgents);
 
   const duration = Date.now() - startTime;
   

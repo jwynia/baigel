@@ -47,20 +47,8 @@ export function supportsChat(connection: Connection): boolean {
   }
   
   // MCP connections are typically tool-only, not conversational
-  // Only consider MCP as chat-capable if explicitly marked as such
   if (connection.protocol === 'mcp') {
-    // Check if this MCP server explicitly supports chat/conversation
-    if (connection.capabilities) {
-      if (Array.isArray(connection.capabilities)) {
-        return connection.capabilities.includes('chat') || 
-               connection.capabilities.includes('conversation') ||
-               connection.capabilities.includes('messaging')
-      }
-      if (typeof connection.capabilities === 'object' && 'chat' in connection.capabilities) {
-        return connection.capabilities.chat === true
-      }
-    }
-    return false // MCP servers are typically tools-only
+    return false // MCP servers are tools-only
   }
   
   return false

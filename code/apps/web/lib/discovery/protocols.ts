@@ -66,7 +66,7 @@ export function parseMCPResponse(data: any, baseUrl: string, endpoint: string): 
     
     // If this is a Mastra MCP tools endpoint, extract the server ID and adjust baseUrl
     const mcpMatch = endpoint.match(/\/api\/mcp\/([^/]+)\/tools/);
-    if (mcpMatch) {
+    if (mcpMatch && mcpMatch[1]) {
       serverId = mcpMatch[1];
       mcpBaseUrl = `${baseUrl}/api/mcp/${serverId}`;
     }
@@ -188,6 +188,11 @@ export function parseWorkflowResponse(data: any, baseUrl: string, endpoint: stri
       return parseMastraServerList(data, baseUrl, endpoint);
     }
     
+    // Detect Mastra agent list specifically
+    if (endpoint.includes('api/agents') && typeof data === 'object' && !Array.isArray(data)) {
+      return parseMastraAgentList(data, baseUrl, endpoint);
+    }
+    
     let workflowService: DiscoveredWorkflowService;
     
     // Skip generic API descriptions that don't provide actionable services
@@ -301,6 +306,52 @@ function parseMastraServerList(data: any, baseUrl: string, endpoint: string): Di
         mastraEndpoint: `${baseUrl}/api/mcp/${server.id}/tools`,
         mcpHttpEndpoint: `${baseUrl}/api/mcp/${server.id}/mcp`,
         mcpSseEndpoint: `${baseUrl}/api/mcp/${server.id}/sse`
+      }
+    };
+    
+    agents.push(agent);
+  }
+  
+  return agents;
+}
+
+/**
+ * Parse Mastra agent list into individual discovered agents
+ */
+function parseMastraAgentList(data: any, baseUrl: string, endpoint: string): DiscoveredAgent[] {
+  const agentKeys = Object.keys(data);
+  const agents: DiscoveredAgent[] = [];
+  
+  for (const agentId of agentKeys) {
+    const agentData = data[agentId];
+    const agent: DiscoveredAgent = {
+      id: `agent-${agentId}`,
+      name: agentData.name || agentId,
+      description: agentData.instructions || `Agent: ${agentData.name || agentId}`,
+      protocol: 'A2A',
+      baseUrl: `${baseUrl}/a2a/${agentId}`,
+      endpoints: [{
+        url: endpoint,
+        protocol: 'A2A',
+        success: true,
+        data: agentData
+      }],
+      capabilities: ['chat', 'streaming'], // A2A agents typically support these
+      tools: [], // Will be populated from A2A agent card
+      authentication: {
+        type: 'none',
+        required: false,
+        description: 'No authentication required for Mastra agents'
+      },
+      transport: ['http'],
+      metadata: {
+        agentId: agentId,
+        provider: agentData.provider,
+        modelId: agentData.modelId,
+        modelVersion: agentData.modelVersion,
+        instructions: agentData.instructions,
+        wellKnownCard: `${baseUrl}/.well-known/${agentId}/agent-card.json`,
+        a2aEndpoint: `${baseUrl}/a2a/${agentId}`
       }
     };
     

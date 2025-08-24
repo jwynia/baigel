@@ -34,10 +34,10 @@ export function discoveredAgentToConnection(agent: DiscoveredAgent): Omit<Connec
           transport: 'http' as const,
           url: agent.baseUrl,
           headers: agent.authentication?.type === 'api-key' 
-            ? { 'Authorization': `Bearer ${agent.authentication.apiKey || ''}` }
+            ? { 'Authorization': `Bearer ${(agent.authentication as any)?.credentials?.apiKey || ''}` }
             : undefined,
         },
-        capabilities: {
+        mcpCapabilities: {
           tools: agent.tools && agent.tools.length > 0,
           resources: agent.capabilities?.includes('resources') || false,
           prompts: agent.capabilities?.includes('prompts') || false,
@@ -53,8 +53,8 @@ export function discoveredAgentToConnection(agent: DiscoveredAgent): Omit<Connec
         ...baseConnection,
         protocol: 'a2a' as const,
         config: {
-          agentId: agent.id,
-          endpoint: agent.baseUrl,
+          agentId: agent.metadata?.agentId || agent.id.replace('agent-', ''),
+          endpoint: agent.metadata?.a2aEndpoint || agent.baseUrl,
           identityCard: {
             name: agent.name,
             description: agent.description || '',
@@ -64,8 +64,20 @@ export function discoveredAgentToConnection(agent: DiscoveredAgent): Omit<Connec
           authentication: agent.authentication ? {
             type: agent.authentication.type === 'none' ? 'none' : 
                   agent.authentication.type === 'api-key' ? 'api-key' : 'oauth',
-            apiKey: agent.authentication.apiKey,
+            apiKey: (agent.authentication as any)?.credentials?.apiKey,
           } : { type: 'none' },
+        },
+        // Preserve metadata for UI display
+        metadata: {
+          agentId: agent.metadata?.agentId,
+          provider: agent.metadata?.provider,
+          modelId: agent.metadata?.modelId,
+          modelVersion: agent.metadata?.modelVersion,
+          instructions: agent.metadata?.instructions,
+          wellKnownCard: agent.metadata?.wellKnownCard,
+          a2aCard: agent.metadata?.a2aCard,
+          inputModes: agent.metadata?.inputModes,
+          outputModes: agent.metadata?.outputModes,
         }
       } as any;
 
@@ -74,7 +86,7 @@ export function discoveredAgentToConnection(agent: DiscoveredAgent): Omit<Connec
         ...baseConnection,
         protocol: 'openai' as const,
         config: {
-          apiKey: agent.authentication?.apiKey || '',
+          apiKey: (agent.authentication as any)?.credentials?.apiKey || '',
           baseUrl: agent.baseUrl !== 'https://api.openai.com' ? agent.baseUrl : undefined,
           model: 'gpt-4-turbo-preview', // Default model
           maxTokens: 4096,
@@ -95,7 +107,7 @@ export function discoveredAgentToConnection(agent: DiscoveredAgent): Omit<Connec
             'Accept': 'application/json',
           },
         },
-        capabilities: {
+        mcpCapabilities: {
           tools: true, // Workflows are tool-based
           resources: false,
           prompts: false,
@@ -257,7 +269,7 @@ export function agentConfigurationToConnection(config: AgentConfiguration): Omit
             ? { 'Authorization': `Bearer ${config.authentication.credentials?.apiKey || ''}` }
             : undefined,
         },
-        capabilities: {
+        mcpCapabilities: {
           tools: true, // Assume tools are available for MCP servers
           resources: false,
           prompts: false,
