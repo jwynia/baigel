@@ -8,27 +8,29 @@ A protocol-agnostic front-end for AI agents that provides a universal interface 
 
 BAIGEL solves the N×M integration problem in the AI agent ecosystem. Instead of building custom front-ends for each agent protocol, BAIGEL provides a unified interface that can work with any agent system through a plugin-based architecture.
 
-**Current Status**: ✅ Phase 1 Complete - Basic chat interface with privacy-first onboarding  
+**Current Status**: ✅ Phase 2 Complete - Discovery, connections, tool execution, and protocol adapters  
 **Demo**: `pnpm dev` → http://localhost:3005
 
 ## 🌟 Key Features
 
 ### ✅ Currently Available
 - **Privacy-First Design**: Everything runs in your browser, no server tracking
-- **Clean Chat Interface**: Modern, responsive chat UI with streaming support
-- **Protocol Selection**: Choose between different agent protocols
-- **Connection Management**: Easy setup and switching between agent connections
-- **File Upload Support**: Drag & drop files, multiple formats, progress tracking
-- **Message Actions**: Copy, edit, delete, regenerate responses
+- **Agent Discovery System**: Automatic discovery of MCP servers, A2A agents, and workflows
+- **Protocol Adapters**: Full implementations for MCP (JSON-RPC 2.0), A2A (Agent-to-Agent), OpenAI
+- **Connection Management**: Complete connection lifecycle with testing, authentication, and storage
+- **Tool Execution**: Universal tool interface with form generation and execution across protocols
+- **MCP Session Management**: Proper JSON-RPC 2.0 session initialization and management
+- **Two-Phase Discovery**: Agent list discovery followed by individual agent card enrichment
+- **Connection Interface Detection**: Automatic detection of chat vs tools vs hybrid interfaces
+- **Standards Compliance**: Prioritizes standards-compliant discovery and interaction
 - **Dark/Light Mode**: Adaptive theming with user preference persistence
 - **Self-Hostable**: Run entirely on your own infrastructure
 
-### 🚧 In Development
-- **Protocol Adapters**: MCP, A2A, AG-UI implementations
-- **Plugin System**: Easy addition of new protocol adapters
-- **State Synchronization**: Cross-protocol state management
-- **Tool Execution**: Universal tool interface across protocols
+### 🚧 In Development  
+- **Workflow Execution**: Execute discovered workflows through the UI
 - **Resource Browser**: Unified access to agent resources
+- **Multi-Agent Coordination**: Cross-protocol agent orchestration
+- **Advanced Tool Schemas**: Complex form generation for tool parameters
 
 ## 🏗️ Architecture
 
@@ -73,11 +75,29 @@ open http://localhost:3005
 
 ### First Run
 
-1. **New users** see a privacy-first onboarding explaining local-only operation
-2. **Returning users** go directly to the chat interface
-3. **Try the interface** with mock protocol responses
-4. **Upload files** using drag & drop or click to browse
-5. **Switch themes** with the theme toggle
+1. **Discovery Page**: Start by discovering agents and services at a base URL
+2. **Connection Setup**: Add discovered agents as connections with automatic configuration  
+3. **Tool Interface**: Execute tools through automatically generated forms
+4. **Chat Interface**: Chat with conversational agents (A2A, OpenAI)
+5. **Connection Management**: Switch between different agent connections seamlessly
+
+### Testing Discovery
+
+Try these endpoints to test the discovery system:
+
+```bash
+# Example discovery endpoints (if available)
+http://localhost:4111/       # Mastra MCP aggregator + A2A agents
+http://your-mcp-server/      # Any MCP-compatible server
+http://your-a2a-agent/       # Any A2A-compatible agent
+```
+
+**Discovery Flow:**
+1. Enter base URL in Discovery page
+2. System probes for MCP aggregators, OpenAPI specs, A2A agents
+3. Displays discovered services with metadata  
+4. Click "Add Connection" to convert to working connection
+5. Use in Chat or Tools interface based on detected capabilities
 
 ## 🛠️ Development
 
@@ -96,15 +116,23 @@ open http://localhost:3005
 ```
 code/apps/web/
 ├── app/                    # Next.js App Router
+│   ├── chat/              # Chat page
+│   ├── discovery/         # Agent discovery page
+│   ├── settings/          # Settings page
+│   └── workflows/         # Workflow discovery page
 ├── components/
 │   ├── chat/              # Chat interface components
-│   ├── onboarding/        # Privacy onboarding flow
-│   ├── connections/       # Connection management
+│   ├── connections/       # Connection management UI
+│   ├── discovery/         # Agent discovery components
+│   ├── tools/             # Tool execution interface
+│   ├── workflows/         # Workflow discovery components
 │   └── ui/                # Shadcn UI components
 ├── lib/
+│   ├── discovery/         # Discovery protocols and probing
+│   ├── services/          # Protocol adapters and execution
 │   ├── stores/            # Zustand state stores
-│   ├── services/          # Core services
-│   └── types.ts           # TypeScript definitions
+│   ├── types/             # Protocol type definitions
+│   └── utils/             # Discovery utilities and converters
 └── __tests__/             # Test files
 ```
 
@@ -143,30 +171,32 @@ BAIGEL is designed to support multiple agent communication protocols:
 
 | Protocol | Status | Description |
 |----------|--------|-------------|
-| **MCP** | 🚧 Planning | Model Context Protocol - Local AI tool execution |
-| **A2A** | 🚧 Planning | Agent-to-Agent - Multi-agent coordination |
-| **AG-UI** | 🚧 Planning | Agent UI Protocol - Real-time streaming |
-| **OpenAI Functions** | 🚧 Planning | OpenAI-compatible function calling |
-| **Custom** | ✅ Supported | Plugin system for custom protocols |
+| **MCP** | ✅ **Implemented** | Model Context Protocol with JSON-RPC 2.0 session management |
+| **A2A** | ✅ **Implemented** | Agent-to-Agent with comprehensive method pattern support |
+| **Workflow** | ✅ **Implemented** | Mastra workflow discovery and aggregation |
+| **OpenAI** | ✅ **Implemented** | OpenAI-compatible function calling and chat |
+| **AG-UI** | 🚧 **Planned** | Agent UI Protocol - Real-time streaming |
+| **Custom** | ✅ **Supported** | Extensible plugin system for new protocols |
 
 ## 🎨 UI Components
 
 ### Current Components
-- **ChatInterface**: Main chat container with message history
-- **MessageBubble**: Individual messages with streaming animation
-- **MessageInput**: Text input with file attachment support  
-- **MessageActions**: Context menu (copy, edit, delete, regenerate)
-- **FileUpload**: Drag & drop file upload with validation
-- **AttachmentViewer**: Multi-format file preview and download
-- **ProtocolSelector**: Switch between different agent protocols
-- **ConnectionStatus**: Real-time connection monitoring
-- **OnboardingPage**: Privacy-first user onboarding
+- **DiscoveryCard**: Agent discovery with connection conversion
+- **DiscoveryProber**: Multi-protocol endpoint probing
+- **ConnectionManager**: Complete connection lifecycle management
+- **ConnectionSelector**: Connection switching with interface detection
+- **CapabilitySelector**: Multi-select for agent capabilities
+- **ToolExecutionInterface**: Universal tool forms with schema validation
+- **ChatInterface**: Multi-protocol chat with hybrid tool support  
+- **WorkflowDiscoveryCard**: Workflow discovery and metadata display
+- **MessageList**: Streaming message display with protocol indicators
+- **ConnectionStatus**: Real-time connection monitoring and testing
 
-### Upcoming Components
-- **ToolExecutor**: Universal tool execution interface
-- **ResourceBrowser**: Cross-protocol resource exploration
-- **DebugPanel**: Protocol message inspection and debugging
-- **SettingsPanel**: Configuration and preferences
+### Protocol-Specific Components
+- **MCPSessionManager**: JSON-RPC 2.0 session initialization UI
+- **A2AInteractionPanel**: Agent-to-agent communication interface  
+- **OpenAIConfigPanel**: OpenAI connection configuration
+- **WorkflowExecutor**: Workflow parameter forms and execution
 
 ## 🤝 Contributing
 
