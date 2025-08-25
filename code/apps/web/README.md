@@ -2,11 +2,11 @@
 
 **B**ridge for **A**gent **I**nterfaces and **G**eneral **E**verything **L**ayers
 
-A protocol-agnostic front-end for AI agents that provides a universal interface to interact with agents across different communication protocols (MCP, A2A, AG-UI, OpenAI Functions, etc.).
+A standards-compliant front-end for AI agents that provides a universal interface to interact with any server implementation across different communication protocols (MCP, A2A, AG-UI, OpenAI Functions, etc.).
 
 ## 🎯 Project Overview
 
-BAIGEL solves the N×M integration problem in the AI agent ecosystem. Instead of building custom front-ends for each agent protocol, BAIGEL provides a unified interface that can work with any agent system through a plugin-based architecture.
+BAIGEL solves the N×M integration problem in the AI agent ecosystem. Instead of building custom front-ends for each server implementation, BAIGEL provides a unified interface that can work with any standards-compliant agent system through automatic discovery and protocol compliance.
 
 **Current Status**: ✅ Phase 2 Complete - Discovery, connections, tool execution, and protocol adapters  
 **Demo**: `pnpm dev` → http://localhost:3005
