@@ -197,7 +197,8 @@ async function executeA2ATool(
 ): Promise<any> {
   const { config } = connection
   
-  const url = `${config.endpoint}/execute`
+  // A2A agents use their direct URL from the agent card
+  const url = `${config.endpoint}`
   
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -207,22 +208,135 @@ async function executeA2ATool(
     headers['Authorization'] = `Bearer ${config.authentication.apiKey}`
   }
   
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
+  // A2A protocol uses JSON-RPC 2.0 format
+  const requestId = Date.now()
+  
+  // Try multiple method patterns based on A2A protocol variations
+  const methodPatterns = [
+    // Standard A2A methods
+    {
+      jsonrpc: '2.0',
+      method: 'message.send',
+      params: {
+        message: generateA2APrompt(toolId, parameters),
+      },
+      id: requestId,
+    },
+    {
+      jsonrpc: '2.0',
+      method: 'chat',
+      params: {
+        message: generateA2APrompt(toolId, parameters),
+      },
+      id: requestId,
+    },
+    {
+      jsonrpc: '2.0',
+      method: 'process',
+      params: {
+        input: generateA2APrompt(toolId, parameters),
+      },
+      id: requestId,
+    },
+    {
+      jsonrpc: '2.0',
+      method: 'generate',
+      params: {
+        prompt: generateA2APrompt(toolId, parameters),
+      },
+      id: requestId,
+    },
+    // Mastra-specific patterns
+    {
+      jsonrpc: '2.0',
+      method: 'execute',
+      params: {
+        skill: toolId,
+        parameters,
+      },
+      id: requestId,
+    },
+    // Legacy format fallback
+    {
       agentId: config.agentId,
       skill: toolId,
       parameters,
-    }),
-  })
+    },
+  ]
   
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`A2A execution failed: ${error}`)
+  let lastError: Error | null = null
+  let allErrors: string[] = []
+  
+  // Try each method pattern until one works
+  for (let i = 0; i < methodPatterns.length; i++) {
+    const payload = methodPatterns[i]
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      })
+      
+      if (response.ok) {
+        const responseData = await response.json()
+        
+        // Handle JSON-RPC 2.0 response format
+        if (responseData.jsonrpc === '2.0') {
+          if (responseData.error) {
+            throw new Error(`A2A Error (${responseData.error.code}): ${responseData.error.message}`)
+          }
+          return responseData.result
+        }
+        
+        // Handle non-JSON-RPC responses
+        return responseData
+      }
+      
+      // Collect all errors for debugging
+      let errorMessage: string
+      try {
+        const errorData = await response.json()
+        errorMessage = errorData.error?.message || errorData.message || `HTTP ${response.status}`
+      } catch {
+        errorMessage = await response.text() || `HTTP ${response.status}`
+      }
+      
+      allErrors.push(`Method ${i + 1}: ${errorMessage}`)
+      
+      // Store the error from the most likely correct format (first one)
+      if (!lastError) {
+        lastError = new Error(`A2A execution failed: ${errorMessage}`)
+      }
+    } catch (error) {
+      allErrors.push(`Method ${i + 1}: ${(error as Error).message}`)
+      if (!lastError) {
+        lastError = error as Error
+      }
+    }
   }
   
-  return response.json()
+  // If all methods failed, throw detailed error
+  const detailedError = new Error(
+    `All ${methodPatterns.length} A2A method patterns failed. Errors: ${allErrors.join('; ')}`
+  )
+  throw detailedError
+}
+
+/**
+ * Generate an appropriate prompt for A2A agents based on tool and parameters
+ */
+function generateA2APrompt(toolId: string, parameters: Record<string, any>): string {
+  // Create a natural language prompt for the agent
+  let prompt = `Please help with the following task: ${toolId}`
+  
+  if (Object.keys(parameters).length > 0) {
+    prompt += '\n\nParameters:'
+    for (const [key, value] of Object.entries(parameters)) {
+      prompt += `\n- ${key}: ${JSON.stringify(value)}`
+    }
+  }
+  
+  return prompt
 }
 
 async function executeAGUITool(
@@ -388,8 +502,13 @@ async function fetchMCPTools(connection: any): Promise<any[]> {
 async function fetchA2ATools(connection: any): Promise<any[]> {
   const { config } = connection
   
-  const url = `${config.endpoint}/skills`
+  // For A2A agents, tools/skills are typically defined in the agent card
+  // Check if we have them in metadata first
+  if (connection.tools && connection.tools.length > 0) {
+    return connection.tools
+  }
   
+  // Try to fetch skills/capabilities from the agent
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   }
@@ -398,15 +517,78 @@ async function fetchA2ATools(connection: any): Promise<any[]> {
     headers['Authorization'] = `Bearer ${config.authentication.apiKey}`
   }
   
-  const response = await fetch(url, {
-    method: 'GET',
-    headers,
-  })
+  const requestId = Date.now()
   
-  if (!response.ok) {
-    return []
+  // Try different methods to get available skills/capabilities
+  const methodPatterns = [
+    {
+      jsonrpc: '2.0',
+      method: 'capabilities.list',
+      id: requestId,
+    },
+    {
+      jsonrpc: '2.0',
+      method: 'skills.list',
+      id: requestId,
+    },
+    {
+      jsonrpc: '2.0',
+      method: 'methods.list',
+      id: requestId,
+    },
+  ]
+  
+  for (const payload of methodPatterns) {
+    try {
+      const response = await fetch(config.endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.jsonrpc === '2.0' && !data.error && data.result) {
+          // Handle different response formats
+          if (Array.isArray(data.result)) {
+            return data.result
+          }
+          if (data.result.skills) {
+            return data.result.skills
+          }
+          if (data.result.capabilities) {
+            return data.result.capabilities
+          }
+          if (data.result.methods) {
+            return data.result.methods.map((method: string) => ({
+              name: method,
+              description: `A2A method: ${method}`,
+            }))
+          }
+        }
+      }
+    } catch (error) {
+      // Continue to next method
+      continue
+    }
   }
   
-  const data = await response.json()
-  return data.skills || []
+  // If no skills can be fetched, create a generic chat tool for A2A agents
+  return [
+    {
+      id: 'chat',
+      name: 'Chat',
+      description: 'Send a message to this A2A agent',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          message: {
+            type: 'string',
+            description: 'The message to send to the agent',
+          },
+        },
+        required: ['message'],
+      },
+    },
+  ]
 }
