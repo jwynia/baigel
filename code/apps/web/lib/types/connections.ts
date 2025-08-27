@@ -108,12 +108,69 @@ export interface LangChainConnection extends BaseConnection {
   }
 }
 
+// Model Provider connection types
+export type ModelProviderType = 
+  | 'openai-provider'
+  | 'openai-compatible' 
+  | 'openrouter'
+  | 'ollama'
+  | 'lmstudio'
+  | 'anthropic'
+  | 'google'
+  | 'azure-openai';
+
+export interface ModelProviderConnection extends BaseConnection {
+  protocol: ModelProviderType
+  config: {
+    baseUrl?: string
+    apiKey?: string
+    timeout?: number
+    retries?: number
+    headers?: Record<string, string>
+    defaultModel?: string
+    // Generation defaults
+    temperature?: number
+    maxTokens?: number
+    topP?: number
+    frequencyPenalty?: number
+    presencePenalty?: number
+    // Provider-specific config
+    organizationId?: string // OpenAI
+    project?: string // OpenAI
+    siteUrl?: string // OpenRouter
+    siteName?: string // OpenRouter
+    host?: string // Ollama
+    keepAlive?: string // Ollama
+    numCtx?: number // Ollama
+    resourceName?: string // Azure
+    deploymentName?: string // Azure
+    apiVersion?: string // Azure
+    projectId?: string // Google
+    location?: string // Google
+  }
+  models?: Array<{
+    id: string
+    name: string
+    description?: string
+    contextLength?: number
+    capabilities: {
+      streaming: boolean
+      functionCalling: boolean
+      vision: boolean
+      embeddings: boolean
+    }
+  }>
+  isHealthy?: boolean
+  lastHealthCheck?: Date
+}
+
 export type Connection = 
   | MCPConnection 
   | A2AConnection 
   | AGUIConnection 
   | OpenAIConnection 
   | LangChainConnection
+  | ModelProviderConnection
 
 export type ProtocolType = Connection['protocol']
 
