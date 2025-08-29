@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import {
   Select,
   SelectContent,
@@ -9,54 +10,132 @@ import {
   Badge,
 } from '@/components/ui'
 import { useChatStore } from '@/components/chat/ChatProvider'
+import { useConnectionStore } from '@/lib/stores/connections'
 import type { ProtocolType, ProtocolInfo } from '@/lib/types'
 
-// Mock protocol data - this would come from a service in a real app
-const availableProtocols: ProtocolInfo[] = [
-  {
-    id: 'ag-ui',
+// Protocol metadata for display purposes
+const protocolMetadata: Record<ProtocolType, Omit<ProtocolInfo, 'id' | 'status'>> = {
+  'ag-ui': {
     name: 'Agent UI',
     description: 'Real-time agent interface protocol',
     type: 'remote',
-    status: 'connected',
     capabilities: ['streaming', 'tools', 'files']
   },
-  {
-    id: 'mcp',
+  'mcp': {
     name: 'Model Context Protocol',
     description: 'Anthropic\'s MCP for tool integration',
     type: 'local',
-    status: 'disconnected',
     capabilities: ['tools', 'resources']
   },
-  {
-    id: 'a2a',
+  'a2a': {
     name: 'Agent-to-Agent',
     description: 'Multi-agent communication protocol',
     type: 'remote',
-    status: 'disconnected',
     capabilities: ['agents', 'delegation']
   },
-  {
-    id: 'openai',
+  'openai': {
     name: 'OpenAI API',
-    description: 'OpenAI\'s chat completion API',
+    description: 'Direct OpenAI API integration',
     type: 'remote',
-    status: 'disconnected',
-    capabilities: ['chat', 'tools']
+    capabilities: ['completions', 'functions']
   },
-  {
-    id: 'langchain',
+  'langchain': {
     name: 'LangChain',
     description: 'LangChain agent framework',
+    type: 'remote',
+    capabilities: ['chains', 'agents', 'memory']
+  },
+  'openai-provider': {
+    name: 'OpenAI Provider',
+    description: 'OpenAI model provider',
+    type: 'remote',
+    capabilities: ['completions']
+  },
+  'openai-compatible': {
+    name: 'OpenAI Compatible',
+    description: 'OpenAI-compatible API provider',
+    type: 'remote',
+    capabilities: ['completions']
+  },
+  'openrouter': {
+    name: 'OpenRouter',
+    description: 'OpenRouter API provider',
+    type: 'remote',
+    capabilities: ['completions']
+  },
+  'ollama': {
+    name: 'Ollama',
+    description: 'Local Ollama instance',
     type: 'local',
-    status: 'disconnected',
-    capabilities: ['agents', 'tools', 'memory']
+    capabilities: ['completions']
+  },
+  'lmstudio': {
+    name: 'LM Studio',
+    description: 'Local LM Studio instance',
+    type: 'local',
+    capabilities: ['completions']
+  },
+  'anthropic': {
+    name: 'Anthropic',
+    description: 'Anthropic Claude API',
+    type: 'remote',
+    capabilities: ['completions']
+  },
+  'google': {
+    name: 'Google',
+    description: 'Google AI API',
+    type: 'remote',
+    capabilities: ['completions']
+  },
+  'azure-openai': {
+    name: 'Azure OpenAI',
+    description: 'Azure OpenAI Service',
+    type: 'remote',
+    capabilities: ['completions']
   }
-]
+}
 
 export function ProtocolSelector() {
   const { activeProtocol, isConnected, setProtocol } = useChatStore()
+  const { connections, activeConnectionId } = useConnectionStore()
+
+  // Build available protocols from actual connections and metadata
+  const availableProtocols: ProtocolInfo[] = useMemo(() => {
+    // Get unique protocols from connections
+    const usedProtocols = new Set(connections.map(conn => conn.protocol))
+    
+    // Add protocols that have connections
+    const protocols: ProtocolInfo[] = Array.from(usedProtocols).map(protocolId => {
+      const metadata = protocolMetadata[protocolId]
+      const connectionsForProtocol = connections.filter(conn => conn.protocol === protocolId)
+      
+      // Determine overall status based on connections
+      let status: 'connected' | 'disconnected' | 'error' = 'disconnected'
+      if (connectionsForProtocol.some(conn => conn.status === 'connected')) {
+        status = 'connected'
+      } else if (connectionsForProtocol.some(conn => conn.status === 'error')) {
+        status = 'error'
+      }
+      
+      return {
+        id: protocolId,
+        status,
+        ...metadata
+      }
+    })
+    
+    // If no connections exist, show common protocols as options
+    if (protocols.length === 0) {
+      const commonProtocols: ProtocolType[] = ['openai', 'mcp', 'a2a', 'ag-ui']
+      return commonProtocols.map(protocolId => ({
+        id: protocolId,
+        status: 'disconnected' as const,
+        ...protocolMetadata[protocolId]
+      }))
+    }
+    
+    return protocols
+  }, [connections])
 
   const handleProtocolChange = (newProtocol: ProtocolType) => {
     setProtocol(newProtocol)

@@ -8,7 +8,6 @@ import type { StandardWorkflowDefinition } from '@/types/workflows';
 interface UseWorkflowDiscoveryOptions {
   autoDiscover?: boolean;
   persistToStorage?: boolean;
-  includeMockData?: boolean;
 }
 
 interface WorkflowDiscoveryState {
@@ -19,37 +18,11 @@ interface WorkflowDiscoveryState {
 }
 
 const STORAGE_KEY = 'baigel_workflow_services';
-const MOCK_MASTRA_SERVICE: DiscoveredAgent = {
-  id: 'mastra-local',
-  name: 'Mastra Workflow Engine',
-  description: 'Mastra workflow service with MCP servers',
-  protocol: 'Workflow',
-  baseUrl: 'http://100.80.122.46:4111',
-  endpoints: [{
-    url: 'http://100.80.122.46:4111/openapi.json',
-    protocol: 'Workflow',
-    success: true,
-    data: {}
-  }],
-  capabilities: ['api_integrations', 'custom_code', 'monitoring', 'audit_logging'].map(c => `workflow:${c}`),
-  metadata: {
-    subProtocol: 'Mastra',
-    workflowCount: 0, // Will be updated on actual discovery
-    frameworks: ['Mastra', 'MCP'],
-    schemaSupport: {
-      input: true,
-      output: true,
-      validation: true,
-      uiHints: false
-    }
-  }
-};
 
 export function useWorkflowDiscovery(options: UseWorkflowDiscoveryOptions = {}) {
   const { 
     autoDiscover = false, 
-    persistToStorage = true,
-    includeMockData = false 
+    persistToStorage = true
   } = options;
 
   const [state, setState] = useState<WorkflowDiscoveryState>(() => {
@@ -71,9 +44,9 @@ export function useWorkflowDiscovery(options: UseWorkflowDiscoveryOptions = {}) 
       }
     }
 
-    // Default state with optional mock data
+    // Default empty state - no mocks
     return {
-      services: includeMockData ? [MOCK_MASTRA_SERVICE] : [],
+      services: [],
       isDiscovering: false,
       error: null,
       lastDiscoveryTime: null

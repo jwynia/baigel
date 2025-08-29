@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Cloud, HardDrive, ChevronDown, ChevronUp, X, Check } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui'
-import { cn } from '@/lib/utils'
+// Removed unused cn import
 
 export function PrivacyMessage() {
   const [showDetails, setShowDetails] = useState(false)

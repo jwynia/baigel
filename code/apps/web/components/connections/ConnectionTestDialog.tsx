@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { CheckCircle, XCircle, Clock, Wifi, Server, AlertCircle } from 'lucide-react'
 import {
   Dialog,
@@ -46,9 +46,9 @@ export function ConnectionTestDialog({
     if (!initialResult) {
       runConnectionTest()
     }
-  }, [connection, initialResult])
+  }, [connection, initialResult, runConnectionTest])
 
-  const runConnectionTest = async () => {
+  const runConnectionTest = useCallback(async () => {
     setIsTestingConnection(true)
     setTestResult(null)
     
@@ -62,52 +62,51 @@ export function ConnectionTestDialog({
     ]
     setTestSteps(steps)
 
-    // Simulate step-by-step testing
-    for (let i = 0; i < steps.length; i++) {
-      const step = steps[i]
-      if (!step) continue
-      
-      const startTime = Date.now()
-      
-      // Update step to running
-      setTestSteps(prev => prev.map(s => 
-        s.id === step.id ? { ...s, status: 'running' as const } : s
-      ))
+    // Update all steps to running for visual feedback
+    setTestSteps(prev => prev.map(s => ({ ...s, status: 'running' as const })))
 
-      // Simulate step execution
-      await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 700))
+    try {
+      // Run actual test
+      const result = await testConnection(connection)
       
-      const duration = Date.now() - startTime
-      const success = Math.random() > 0.1 // 90% success rate per step
-      
-      // Update step with result
-      setTestSteps(prev => prev.map(s => 
-        s.id === step.id 
-          ? { 
-              ...s, 
-              status: success ? 'success' as const : 'error' as const,
-              message: success ? `Completed in ${duration}ms` : 'Failed to complete',
-              duration
-            } 
-          : s
-      ))
-
-      // Stop if step failed (except for capabilities check)
-      if (!success && step.id !== 'capabilities') {
-        setTestResult({
-          success: false,
-          error: `Test failed at step: ${step.name}`
-        })
-        setIsTestingConnection(false)
-        return
+      // Update steps based on real test results
+      if (result.success) {
+        setTestSteps(prev => prev.map(s => ({
+          ...s,
+          status: 'success' as const,
+          message: s.id === 'latency' && result.latency ? 
+            `${result.latency}ms` : 
+            'Completed',
+          duration: s.id === 'latency' ? result.latency : undefined
+        })))
+      } else {
+        // Mark all steps as failed based on where the actual connection failed
+        setTestSteps(prev => prev.map(s => ({
+          ...s,
+          status: 'error' as const,
+          message: result.error || 'Failed'
+        })))
       }
+      
+      setTestResult(result)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Test failed'
+      
+      // Mark all steps as failed
+      setTestSteps(prev => prev.map(s => ({
+        ...s,
+        status: 'error' as const,
+        message: errorMessage
+      })))
+      
+      setTestResult({
+        success: false,
+        error: errorMessage
+      })
     }
-
-    // Run actual test
-    const result = await testConnection(connection)
-    setTestResult(result)
+    
     setIsTestingConnection(false)
-  }
+  }, [connection])
 
   const getStepIcon = (status: TestStep['status']) => {
     switch (status) {

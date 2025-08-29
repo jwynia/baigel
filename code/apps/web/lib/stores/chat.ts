@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { ChatState, Message, ProtocolType, Tool, ToolCall, ConnectionConfig } from '@/lib/types'
 import { useConnectionStore } from './connections'
+import { ProtocolAdapterFactory, type ProtocolAdapter } from '@/lib/protocol-adapters'
 
 interface ChatStore extends ChatState {
   // Actions
@@ -22,6 +23,9 @@ interface ChatStore extends ChatState {
   setAvailableTools: (tools: Tool[]) => void
   addToolCall: (toolCall: ToolCall) => void
   updateToolCall: (id: string, update: Partial<ToolCall>) => void
+  
+  // Protocol adapter management
+  getCurrentAdapter: () => ProtocolAdapter | null
 }
 
 const generateId = () => Math.random().toString(36).substr(2, 9)
@@ -37,6 +41,9 @@ export const useChatStore = create<ChatStore>()(
       connectionConfig: undefined,
       availableTools: [],
       activeToolCalls: [],
+
+      // Protocol adapter cache
+      currentAdapter: null as ProtocolAdapter | null,
 
       // Message actions
       addMessage: (message) => {
@@ -85,12 +92,22 @@ export const useChatStore = create<ChatStore>()(
         set({ connectionConfig: config }, false, 'setConnectionConfig')
       },
 
-      // Mock implementation for now - will be replaced with actual protocol adapters
+      // Real protocol adapter implementation
       sendMessage: async (content) => {
-        const { addMessage, setStreaming } = get()
+        const { addMessage, setStreaming, getCurrentAdapter } = get()
         const connectionStore = useConnectionStore.getState()
         const activeConnection = connectionStore.getActiveConnection()
         
+        if (!activeConnection) {
+          addMessage({
+            id: generateId(),
+            role: 'assistant',
+            content: 'No active connection. Please connect to a protocol first.',
+            status: 'error'
+          })
+          return
+        }
+
         // Add user message
         const userMessage: Omit<Message, 'timestamp'> = {
           id: generateId(),
@@ -100,37 +117,60 @@ export const useChatStore = create<ChatStore>()(
         }
         addMessage(userMessage)
 
-        // Mock assistant response
-        setStreaming(true)
-        const assistantId = generateId()
-        
-        // Add empty assistant message
-        addMessage({
-          id: assistantId,
-          role: 'assistant',
-          content: '',
-          isStreaming: true
-        })
+        try {
+          const adapter = getCurrentAdapter()
+          if (!adapter || !adapter.isConnected()) {
+            throw new Error('Protocol adapter not connected')
+          }
 
-        // Simulate streaming response with connection info
-        const connectionInfo = activeConnection 
-          ? `${activeConnection.name} (${activeConnection.protocol.toUpperCase()})`
-          : 'no active connection'
-        const mockResponse = `I received your message: "${content}". This is a mock response from ${connectionInfo}.`
-        
-        for (let i = 0; i <= mockResponse.length; i++) {
-          await new Promise(resolve => setTimeout(resolve, 20))
-          get().updateMessage(assistantId, {
-            content: mockResponse.slice(0, i),
-            isStreaming: i < mockResponse.length
+          setStreaming(true)
+          const assistantId = generateId()
+          
+          // Add empty assistant message for streaming
+          addMessage({
+            id: assistantId,
+            role: 'assistant',
+            content: '',
+            isStreaming: true
           })
-        }
 
-        setStreaming(false)
+          // Try streaming first, fall back to regular message if not supported
+          try {
+            for await (const message of adapter.sendMessageStream(content)) {
+              get().updateMessage(assistantId, {
+                content: message.content,
+                isStreaming: true
+              })
+            }
+            
+            // Mark as complete
+            get().updateMessage(assistantId, {
+              isStreaming: false
+            })
+          } catch (streamError) {
+            // Fall back to non-streaming
+            const response = await adapter.sendMessage(content)
+            get().updateMessage(assistantId, {
+              content: response.content,
+              isStreaming: false
+            })
+          }
+
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+          addMessage({
+            id: generateId(),
+            role: 'assistant',
+            content: `Error: ${errorMessage}`,
+            status: 'error'
+          })
+        } finally {
+          setStreaming(false)
+        }
       },
 
       connect: async () => {
-        const { setConnected } = get()
+        const { setConnected, setAvailableTools } = get()
         const connectionStore = useConnectionStore.getState()
         const activeConnection = connectionStore.getActiveConnection()
         
@@ -138,51 +178,63 @@ export const useChatStore = create<ChatStore>()(
           console.warn('No active connection to connect to')
           return
         }
-        
-        // Mock connection logic
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        setConnected(true)
-        
-        // Mock available tools based on connection's protocol
-        const mockTools: Tool[] = []
-        
-        switch (activeConnection.protocol) {
-          case 'mcp':
-            mockTools.push(
-              { name: 'read_file', description: 'Read file contents', parameters: { path: 'string' } },
-              { name: 'write_file', description: 'Write file contents', parameters: { path: 'string', content: 'string' } },
-              { name: 'list_directory', description: 'List directory contents', parameters: { path: 'string' } }
-            )
-            break
-          case 'openai':
-            mockTools.push(
-              { name: 'dall_e', description: 'Generate images', parameters: { prompt: 'string' } },
-              { name: 'code_interpreter', description: 'Execute Python code', parameters: { code: 'string' } }
-            )
-            break
-          case 'langchain':
-            mockTools.push(
-              { name: 'search', description: 'Search for information', parameters: { query: 'string' } },
-              { name: 'calculator', description: 'Perform calculations', parameters: { expression: 'string' } },
-              { name: 'weather', description: 'Get weather information', parameters: { location: 'string' } }
-            )
-            break
-          default:
-            mockTools.push(
-              { name: 'generic_tool', description: 'Generic tool', parameters: { input: 'string' } }
-            )
+
+        try {
+          // Create protocol adapter
+          const adapter = ProtocolAdapterFactory.create(activeConnection)
+          
+          // Update connection status in connection store
+          connectionStore.updateConnectionStatus(activeConnection.id, 'connecting')
+          
+          // Connect using the adapter
+          await adapter.connect()
+          
+          // Cache the adapter and update state
+          set({ currentAdapter: adapter } as any, false, 'setCurrentAdapter')
+          setConnected(true)
+          
+          // Update connection status to connected
+          connectionStore.updateConnectionStatus(activeConnection.id, 'connected')
+          
+          // Fetch available tools
+          const tools = await adapter.getAvailableTools()
+          setAvailableTools(tools)
+          
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Connection failed'
+          console.error('Connection error:', errorMessage)
+          
+          // Update connection status to error
+          connectionStore.updateConnectionStatus(activeConnection.id, 'error', errorMessage)
+          
+          setConnected(false)
+          throw error
         }
-        
-        get().setAvailableTools(mockTools)
       },
 
       disconnect: async () => {
-        set({
-          isConnected: false,
-          availableTools: [],
-          activeToolCalls: []
-        }, false, 'disconnect')
+        const { currentAdapter } = get() as any
+        const connectionStore = useConnectionStore.getState()
+        const activeConnection = connectionStore.getActiveConnection()
+        
+        try {
+          if (currentAdapter) {
+            await currentAdapter.disconnect()
+          }
+        } catch (error) {
+          console.error('Disconnect error:', error)
+        } finally {
+          set({
+            isConnected: false,
+            availableTools: [],
+            activeToolCalls: [],
+            currentAdapter: null
+          } as any, false, 'disconnect')
+          
+          if (activeConnection) {
+            connectionStore.updateConnectionStatus(activeConnection.id, 'disconnected')
+          }
+        }
       },
 
       // Tool actions
@@ -202,6 +254,12 @@ export const useChatStore = create<ChatStore>()(
             call.id === id ? { ...call, ...update } : call
           )
         }), false, 'updateToolCall')
+      },
+
+      // Protocol adapter management
+      getCurrentAdapter: () => {
+        const state = get() as any
+        return state.currentAdapter
       }
     }),
     {

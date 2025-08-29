@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Upload, File, X, AlertCircle } from 'lucide-react'
+import { Upload, File, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface FileUploadProps {

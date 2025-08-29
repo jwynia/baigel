@@ -73,14 +73,14 @@ export function MessageActions({
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [message.id, message.role, canDelete])
+  }, [message.id, message.role, canDelete, handleCopy, handleRegenerate])
 
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(message.content)
       setCopyFeedback('success')
       onCopy()
-    } catch (err) {
+    } catch {
       setCopyFeedback('error')
     }
 

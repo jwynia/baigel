@@ -132,110 +132,126 @@ export const useConnectionStore = create<ConnectionStore>()(
   )
 )
 
-// Mock connection testing function
+// Real connection testing function using protocol adapters
 export async function testConnection(connection: Connection): Promise<ConnectionTestResult> {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000))
+  const startTime = Date.now()
   
-  // Mock different test results based on protocol
-  const successRate = 0.8 // 80% success rate for demo
-  const success = Math.random() < successRate
-  
-  if (!success) {
+  try {
+    // Import protocol adapters dynamically to avoid circular imports
+    const { ProtocolAdapterFactory } = await import('@/lib/protocol-adapters')
+    
+    // Create adapter for the connection
+    const adapter = ProtocolAdapterFactory.create(connection)
+    
+    // Attempt to connect
+    await adapter.connect()
+    
+    const latency = Date.now() - startTime
+    
+    // Get connection info and available tools
+    const connectionInfo = adapter.getConnectionInfo()
+    const tools = await adapter.getAvailableTools()
+    
+    // Disconnect after testing
+    await adapter.disconnect()
+    
+    // Build capabilities based on what we discovered
+    const capabilities: Record<string, boolean> = {
+      tools: tools.length > 0
+    }
+    
+    // Add protocol-specific capabilities
+    switch (connection.protocol) {
+      case 'mcp':
+        capabilities.resources = true
+        capabilities.prompts = true
+        break
+      case 'openai':
+        capabilities.streaming = true
+        break
+      case 'a2a':
+        capabilities.agents = true
+        capabilities.delegation = true
+        break
+      case 'ag-ui':
+        capabilities.streaming = true
+        capabilities.multiModal = true
+        break
+    }
+    
+    return {
+      success: true,
+      latency,
+      capabilities,
+      info: {
+        name: connection.name,
+        description: `Connected to ${connectionInfo}`
+      }
+    }
+    
+  } catch (error) {
+    const latency = Date.now() - startTime
     return {
       success: false,
-      error: 'Connection timeout: Unable to reach the server'
+      latency,
+      error: error instanceof Error ? error.message : 'Connection test failed'
     }
-  }
-  
-  // Return protocol-specific test results
-  switch (connection.protocol) {
-    case 'mcp':
-      return {
-        success: true,
-        latency: Math.floor(50 + Math.random() * 100),
-        capabilities: {
-          tools: true,
-          resources: true,
-          prompts: Math.random() > 0.5
-        },
-        info: {
-          version: '1.0.0',
-          name: 'MCP Test Server',
-          description: 'A mock MCP server for testing'
-        }
-      }
-    
-    case 'openai':
-      return {
-        success: true,
-        latency: Math.floor(100 + Math.random() * 200),
-        info: {
-          version: 'v1',
-          name: 'OpenAI API',
-          description: 'GPT-4 Turbo Preview'
-        }
-      }
-    
-    case 'ag-ui':
-      return {
-        success: true,
-        latency: Math.floor(30 + Math.random() * 70),
-        capabilities: {
-          streaming: true,
-          tools: true,
-          multiModal: false
-        },
-        info: {
-          version: '2.0.0',
-          name: 'AG-UI Server'
-        }
-      }
-    
-    default:
-      return {
-        success: true,
-        latency: Math.floor(50 + Math.random() * 150)
-      }
   }
 }
 
-// Mock connect function
+// Real connect function using protocol adapters
 export async function connectToService(connection: Connection): Promise<void> {
   const store = useConnectionStore.getState()
   
   // Set connecting status
   store.updateConnectionStatus(connection.id, 'connecting')
   
-  // Simulate connection delay
-  await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1500))
-  
-  // 90% success rate for connections
-  const success = Math.random() < 0.9
-  
-  if (success) {
+  try {
+    // Import protocol adapters dynamically to avoid circular imports
+    const { ProtocolAdapterFactory } = await import('@/lib/protocol-adapters')
+    
+    // Create and connect using the appropriate adapter
+    const adapter = ProtocolAdapterFactory.create(connection)
+    await adapter.connect()
+    
+    // Connection successful
     store.updateConnectionStatus(connection.id, 'connected')
     store.setActiveConnection(connection.id)
-  } else {
-    store.updateConnectionStatus(
-      connection.id, 
-      'error', 
-      'Failed to establish connection: Connection refused'
-    )
+    
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Connection failed'
+    store.updateConnectionStatus(connection.id, 'error', errorMessage)
+    throw error // Re-throw so caller can handle the error
   }
 }
 
-// Mock disconnect function
+// Real disconnect function
 export async function disconnectFromService(connectionId: string): Promise<void> {
   const store = useConnectionStore.getState()
+  const connection = store.getConnection(connectionId)
   
-  // Simulate disconnect delay
-  await new Promise(resolve => setTimeout(resolve, 500))
+  if (!connection) {
+    throw new Error(`Connection ${connectionId} not found`)
+  }
   
-  store.updateConnectionStatus(connectionId, 'disconnected')
-  
-  // Clear active connection if it was this one
-  if (store.activeConnectionId === connectionId) {
-    store.setActiveConnection(null)
+  try {
+    // Import protocol adapters dynamically to avoid circular imports
+    const { ProtocolAdapterFactory } = await import('@/lib/protocol-adapters')
+    
+    // Create adapter and disconnect
+    const adapter = ProtocolAdapterFactory.create(connection)
+    await adapter.disconnect()
+    
+  } catch (error) {
+    // Log error but don't throw - disconnection should always succeed from UI perspective
+    console.error('Error during disconnect:', error)
+  } finally {
+    // Always update status and clear active connection
+    store.updateConnectionStatus(connectionId, 'disconnected')
+    
+    // Clear active connection if it was this one
+    if (store.activeConnectionId === connectionId) {
+      store.setActiveConnection(null)
+    }
   }
 }

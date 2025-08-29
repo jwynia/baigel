@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useCallback } from 'react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -16,7 +17,7 @@ import {
   AlertCircle,
   Loader2
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+// Removed unused cn import
 import type { Attachment } from '@/lib/types'
 
 interface AttachmentViewerProps {
@@ -140,10 +141,12 @@ export function AttachmentViewer({ attachment, onDownload, onRemove }: Attachmen
                   }
                 }}
               >
-                <img
+                <Image
                   src={attachment.thumbnail || attachment.url}
                   alt={`${attachment.name} thumbnail`}
-                  className="w-full h-full object-cover"
+                  className="object-cover"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 33vw"
                   onError={handleImageError}
                 />
               </div>
@@ -295,11 +298,14 @@ export function AttachmentViewer({ attachment, onDownload, onRemove }: Attachmen
           <DialogHeader className="p-4 pb-2">
             <DialogTitle className="truncate">{attachment.name}</DialogTitle>
           </DialogHeader>
-          <div className="px-4 pb-4">
-            <img
+          <div className="px-4 pb-4 relative min-h-[200px] max-h-[70vh]">
+            <Image
               src={attachment.url}
               alt={`Full size ${attachment.name}`}
-              className="w-full h-auto max-h-[70vh] object-contain rounded"
+              className="object-contain rounded"
+              fill
+              sizes="(max-width: 768px) 100vw, 80vw"
+              priority
             />
           </div>
           <Button

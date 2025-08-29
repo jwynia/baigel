@@ -77,7 +77,7 @@ export default function SettingsPage() {
       setImportStatus('success');
       setImportMessage('Configuration exported successfully');
       setTimeout(() => setImportStatus('idle'), 3000);
-    } catch (error) {
+    } catch {
       setImportStatus('error');
       setImportMessage('Failed to export configuration');
       setTimeout(() => setImportStatus('idle'), 3000);

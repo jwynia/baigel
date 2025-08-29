@@ -24,7 +24,6 @@ import {
   Workflow,
   ArrowLeft,
   Info,
-  Play,
   Plus,
   RefreshCw,
   Loader2,
@@ -74,7 +73,7 @@ export default function WorkflowsPage() {
     if (services.length === 0 && !lastDiscoveryTime) {
       discoverServices();
     }
-  }, []);
+  }, [discoverServices, lastDiscoveryTime, services.length]);
 
   const handleExploreService = (service: DiscoveredAgent) => {
     setSelectedService(service);

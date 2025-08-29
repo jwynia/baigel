@@ -1,7 +1,7 @@
 'use client'
 
 import { Shield, Lock } from 'lucide-react'
-import { cn } from '@/lib/utils'
+// Removed unused cn import
 
 export function PrivacyHero() {
   return (

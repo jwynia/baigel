@@ -3,9 +3,9 @@
  * Provides common functionality for all model provider adapters
  */
 
+import type { ModelProviderType } from '@/lib/types/connections';
 import type { 
   IProviderAdapter, 
-  ModelProviderType, 
   ProviderConfig,
   ModelInfo,
   ChatCompletionRequest,
@@ -54,11 +54,11 @@ export class ProviderConnectionError extends ProviderError {
 
 // HTTP client interface for dependency injection
 export interface HttpClient {
-  get<T = any>(url: string, config?: RequestInit): Promise<T>;
-  post<T = any>(url: string, data?: any, config?: RequestInit): Promise<T>;
-  put<T = any>(url: string, data?: any, config?: RequestInit): Promise<T>;
-  delete<T = any>(url: string, config?: RequestInit): Promise<T>;
-  stream(url: string, data?: any, config?: RequestInit): AsyncIterable<any>;
+  get<T = unknown>(url: string, config?: RequestInit): Promise<T>;
+  post<T = unknown>(url: string, data?: unknown, config?: RequestInit): Promise<T>;
+  put<T = unknown>(url: string, data?: unknown, config?: RequestInit): Promise<T>;
+  delete<T = unknown>(url: string, config?: RequestInit): Promise<T>;
+  stream(url: string, data?: unknown, config?: RequestInit): AsyncIterable<unknown>;
 }
 
 // Default fetch-based HTTP client
@@ -76,7 +76,7 @@ export class FetchHttpClient implements HttpClient {
   private async request<T>(
     method: string, 
     endpoint: string, 
-    data?: any, 
+    data?: unknown, 
     config?: RequestInit
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
@@ -113,7 +113,7 @@ export class FetchHttpClient implements HttpClient {
 
       try {
         return JSON.parse(responseText);
-      } catch (parseError) {
+      } catch {
         throw new ProviderError(
           'Invalid JSON response',
           'PARSE_ERROR',
@@ -136,23 +136,23 @@ export class FetchHttpClient implements HttpClient {
     }
   }
 
-  async get<T = any>(endpoint: string, config?: RequestInit): Promise<T> {
+  async get<T = unknown>(endpoint: string, config?: RequestInit): Promise<T> {
     return this.request<T>('GET', endpoint, undefined, config);
   }
 
-  async post<T = any>(endpoint: string, data?: any, config?: RequestInit): Promise<T> {
+  async post<T = unknown>(endpoint: string, data?: unknown, config?: RequestInit): Promise<T> {
     return this.request<T>('POST', endpoint, data, config);
   }
 
-  async put<T = any>(endpoint: string, data?: any, config?: RequestInit): Promise<T> {
+  async put<T = unknown>(endpoint: string, data?: unknown, config?: RequestInit): Promise<T> {
     return this.request<T>('PUT', endpoint, data, config);
   }
 
-  async delete<T = any>(endpoint: string, config?: RequestInit): Promise<T> {
+  async delete<T = unknown>(endpoint: string, config?: RequestInit): Promise<T> {
     return this.request<T>('DELETE', endpoint, undefined, config);
   }
 
-  async* stream(endpoint: string, data?: any, config?: RequestInit): AsyncIterable<any> {
+  async* stream(endpoint: string, data?: unknown, config?: RequestInit): AsyncIterable<unknown> {
     const url = `${this.baseURL}${endpoint}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -300,7 +300,7 @@ export abstract class BaseProviderAdapter implements IProviderAdapter {
       // Test with a simple request if possible
       let capabilities: ModelCapabilities | undefined;
       if (models.length > 0) {
-        capabilities = models[0].capabilities;
+        capabilities = models[0]?.capabilities;
       }
 
       return {
@@ -378,13 +378,22 @@ export abstract class BaseProviderAdapter implements IProviderAdapter {
     return modelId.trim();
   }
 
-  protected createErrorFromResponse(response: any, statusCode?: number): ProviderError {
+  protected createErrorFromResponse(response: unknown, statusCode?: number): ProviderError {
     let message = 'Unknown provider error';
     let code = 'UNKNOWN_ERROR';
 
-    if (response?.error) {
-      message = response.error.message || response.error;
-      code = response.error.code || response.error.type || 'API_ERROR';
+    // Type guard for error response
+    if (response && typeof response === 'object' && 'error' in response) {
+      const errorObj = (response as Record<string, unknown>).error;
+      if (typeof errorObj === 'string') {
+        message = errorObj;
+      } else if (errorObj && typeof errorObj === 'object') {
+        const errorDetails = errorObj as Record<string, unknown>;
+        message = (typeof errorDetails.message === 'string' ? errorDetails.message : 
+                  typeof errorObj === 'object' ? JSON.stringify(errorObj).substring(0, 200) : String(errorObj));
+        code = (typeof errorDetails.code === 'string' ? errorDetails.code : 
+               typeof errorDetails.type === 'string' ? errorDetails.type : 'API_ERROR');
+      }
     } else if (typeof response === 'string') {
       message = response;
     }
