@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
-  Badge,
   Tabs,
   TabsContent,
   TabsList,
@@ -28,7 +27,7 @@ import {
   Checkbox,
 } from '@/components/ui'
 import { useConnectionStore } from '@/lib/stores/connections'
-import { protocolMetadata, getConfigFieldsForTransport, validateConfigField } from '@/lib/protocols/metadata'
+import { protocolMetadata } from '@/lib/protocols/metadata'
 import type { Connection, ProtocolType, ConfigField } from '@/lib/types/connections'
 
 const connectionSchema = z.object({

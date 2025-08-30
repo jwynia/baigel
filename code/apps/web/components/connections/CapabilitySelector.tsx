@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { ChevronRight, Wrench, Zap, Search, Filter, Play } from 'lucide-react'
 import {
   Button,

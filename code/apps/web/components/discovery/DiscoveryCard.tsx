@@ -4,7 +4,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, Key, Lock, Network, Plus, Shield, Wrench, Link as LinkIcon } from 'lucide-react';
+import { Check, Key, Lock, Network, Plus, Shield, Wrench } from 'lucide-react';
 import type { DiscoveredAgent } from '@/types/discovery';
 import { useConnectionStore } from '@/lib/stores/connections';
 import { discoveredAgentToConnection, isAgentAlreadyConnected } from '@/lib/utils/discovery-to-connection';

@@ -5,12 +5,8 @@ import { Zap, Star, Clock, Plus } from 'lucide-react'
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Button,
   Badge,
-  ScrollArea,
 } from '@/components/ui'
 import { useConnectionStore, connectToService } from '@/lib/stores/connections'
 import { protocolMetadata } from '@/lib/protocols/metadata'
