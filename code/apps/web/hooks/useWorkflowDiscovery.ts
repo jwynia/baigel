@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { probeForAgents } from '@/lib/discovery/prober';
+import { useDiscoveryPreferencesStore } from '@/lib/stores/discovery-preferences';
 import type { DiscoveredAgent, ProbeConfig } from '@/types/discovery';
 import type { StandardWorkflowDefinition } from '@/types/workflows';
 
@@ -68,11 +69,20 @@ export function useWorkflowDiscovery(options: UseWorkflowDiscoveryOptions = {}) 
     setState(prev => ({ ...prev, isDiscovering: true, error: null }));
 
     try {
-      const discoveryUrls = urls || [
-        'http://100.80.122.46:4111', // Your Mastra instance
-        'http://localhost:4111',      // Local Mastra
-        'http://localhost:8080',      // Common workflow port
-      ];
+      // Get URLs from preferences store if not provided
+      let discoveryUrls = urls;
+      if (!discoveryUrls) {
+        const store = useDiscoveryPreferencesStore.getState();
+        const preferredUrls = store.getDiscoveryUrls()
+          .filter(endpoint => endpoint.source === 'default' || endpoint.source === 'user')
+          .map(endpoint => endpoint.url);
+
+        // Fallback to workflow-specific defaults if no preferences found
+        discoveryUrls = preferredUrls.length > 0 ? preferredUrls : [
+          'http://localhost:4111',      // Local Mastra
+          'http://localhost:8080',      // Common workflow port
+        ];
+      }
 
       const allServices: DiscoveredAgent[] = [];
 
@@ -87,15 +97,26 @@ export function useWorkflowDiscovery(options: UseWorkflowDiscoveryOptions = {}) 
           };
 
           const result = await probeForAgents(config);
-          
+
           // Filter for workflow services
           const workflowServices = result.agents.filter(
             agent => agent.protocol === 'Workflow'
           );
-          
+
           allServices.push(...workflowServices);
+
+          // Record successful discovery in preferences store
+          if (workflowServices.length > 0) {
+            const store = useDiscoveryPreferencesStore.getState();
+            store.recordDiscovery(url, true, 'Workflow');
+          }
         } catch (err) {
           console.warn(`Failed to probe ${url}:`, err);
+
+          // Record failed discovery in preferences store
+          const store = useDiscoveryPreferencesStore.getState();
+          store.recordDiscovery(url, false, 'Workflow');
+
           // Continue with other URLs
         }
       }

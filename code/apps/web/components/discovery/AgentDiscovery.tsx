@@ -5,13 +5,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  AlertCircle, 
-  Globe, 
-  Loader2, 
+import {
+  AlertCircle,
+  Globe,
+  Loader2,
   Search,
   HelpCircle,
-  Sparkles
+  Sparkles,
+  BookmarkPlus,
+  Star
 } from 'lucide-react';
 import {
   Tooltip,
@@ -27,11 +29,12 @@ import {
 import { DiscoveryResults } from './DiscoveryResults';
 import { probeForAgents, isValidUrl, getExampleUrls } from '@/lib/discovery/prober';
 import { discoveredAgentToConnection } from '@/lib/utils/discovery-to-connection';
-import type { 
-  ProbeResult, 
-  DiscoveryStatus, 
+import { useDiscoveryPreferencesStore } from '@/lib/stores/discovery-preferences';
+import type {
+  ProbeResult,
+  DiscoveryStatus,
   DiscoveredAgent,
-  AgentConfiguration 
+  AgentConfiguration
 } from '@/types/discovery';
 
 interface AgentDiscoveryProps {
@@ -49,8 +52,10 @@ export function AgentDiscovery({
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showExamples, setShowExamples] = useState(false);
+  const [showRememberOption, setShowRememberOption] = useState(false);
 
   const exampleUrls = getExampleUrls();
+  const { addSavedEndpoint, recordDiscovery } = useDiscoveryPreferencesStore();
 
   const handleDiscover = useCallback(async () => {
     if (!url) {
@@ -76,9 +81,22 @@ export function AgentDiscovery({
 
       setResult(probeResult);
       setStatus(probeResult.status);
+
+      // Record discovery in preferences store
+      const hasAgents = probeResult.agents.length > 0;
+      recordDiscovery(url, hasAgents, probeResult.agents[0]?.protocol);
+
+      // Show remember option for successful discoveries
+      if (hasAgents) {
+        setShowRememberOption(true);
+      }
     } catch (err) {
       setStatus('error');
       setError(err instanceof Error ? err.message : 'Discovery failed');
+
+      // Record failed discovery
+      recordDiscovery(url, false);
+
       setResult({
         status: 'error',
         agents: [],
@@ -193,6 +211,15 @@ export function AgentDiscovery({
     setShowExamples(false);
   }, []);
 
+  const handleRememberEndpoint = useCallback(() => {
+    if (url && result?.agents.length > 0) {
+      const protocol = result.agents[0]?.protocol || 'Unknown';
+      const description = `${protocol} service at ${new URL(url).hostname}`;
+      addSavedEndpoint(url, description);
+      setShowRememberOption(false);
+    }
+  }, [url, result, addSavedEndpoint]);
+
   return (
     <div className="space-y-6">
       {/* Discovery Input Card */}
@@ -275,7 +302,12 @@ export function AgentDiscovery({
                       className="w-full text-left p-2 rounded hover:bg-background transition-colors"
                     >
                       <div className="flex items-center justify-between">
-                        <code className="text-sm font-mono">{example.url}</code>
+                        <div className="flex items-center gap-2">
+                          <code className="text-sm font-mono">{example.url}</code>
+                          {'source' in example && example.source === 'user' && (
+                            <Star className="h-3 w-3 text-amber-500" title="Saved endpoint" />
+                          )}
+                        </div>
                         <span className="text-xs text-muted-foreground">
                           {example.description}
                         </span>
@@ -303,6 +335,48 @@ export function AgentDiscovery({
           </div>
         </CardContent>
       </Card>
+
+      {/* Remember Endpoint Option */}
+      {showRememberOption && result?.agents.length > 0 && (
+        <Card className="border-green-200 bg-green-50/50">
+          <CardContent className="pt-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <BookmarkPlus className="h-5 w-5 text-green-600 mt-0.5" />
+                <div className="space-y-1">
+                  <h4 className="text-sm font-medium text-green-900">
+                    Discovery Successful!
+                  </h4>
+                  <p className="text-sm text-green-700">
+                    Found {result.agents.length} agent{result.agents.length === 1 ? '' : 's'} at <code className="px-1 py-0.5 bg-green-100 rounded text-xs">{url}</code>
+                  </p>
+                  <p className="text-xs text-green-600">
+                    Save this endpoint for faster discovery next time?
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowRememberOption(false)}
+                  className="text-green-700 border-green-300 hover:bg-green-100"
+                >
+                  Not now
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleRememberEndpoint}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Star className="h-3 w-3 mr-1" />
+                  Remember
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Discovery Results */}
       <Card>

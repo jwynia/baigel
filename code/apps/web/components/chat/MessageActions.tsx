@@ -51,30 +51,6 @@ export function MessageActions({
   const [showUndo, setShowUndo] = useState(false)
   const [undoTimeout, setUndoTimeout] = useState<NodeJS.Timeout | null>(null)
 
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle shortcuts when the component is focused
-      if (document.activeElement?.closest('[data-message-actions]') !== document.querySelector(`[data-message-id="${message.id}"]`)) {
-        return
-      }
-
-      if (e.ctrlKey && e.key === 'c') {
-        e.preventDefault()
-        handleCopy()
-      } else if (e.key === 'Delete' && canDelete) {
-        e.preventDefault()
-        setDeleteConfirmOpen(true)
-      } else if (e.key === 'r' && message.role === 'assistant') {
-        e.preventDefault()
-        handleRegenerate()
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [message.id, message.role, canDelete, handleCopy, handleRegenerate])
-
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(message.content)

@@ -23,11 +23,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { 
-  Menu, 
-  Search, 
-  Settings, 
-  Home, 
+import {
+  Menu,
+  Search,
+  Settings,
+  Home,
   MessageSquare,
   Download,
   Upload,
@@ -38,16 +38,26 @@ import {
   FileJson,
   RefreshCw,
   Shield,
-  Database
+  Database,
+  Globe,
+  Star,
+  BookmarkX
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSettingsStore } from '@/lib/stores/settings';
+import { useDiscoveryPreferencesStore } from '@/lib/stores/discovery-preferences';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 export default function SettingsPage() {
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [importMessage, setImportMessage] = useState('');
   const [showDebug, setShowDebug] = useState(false);
+  const [newEndpointUrl, setNewEndpointUrl] = useState('');
+  const [newEndpointDesc, setNewEndpointDesc] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const {
@@ -60,6 +70,19 @@ export default function SettingsPage() {
     clearPreferences,
     lastExportTime
   } = useSettingsStore();
+
+  const {
+    enableLocalhostDiscovery,
+    enableAutoSave,
+    savedEndpoints,
+    discoveryHistory,
+    setLocalhostDiscovery,
+    setAutoSave,
+    addSavedEndpoint,
+    removeSavedEndpoint,
+    clearHistory,
+    reset: resetDiscoveryPreferences
+  } = useDiscoveryPreferencesStore();
 
   const handleExport = () => {
     try {
@@ -115,6 +138,27 @@ export default function SettingsPage() {
 
   const handleClearAll = async () => {
     await clearAllSettings();
+  };
+
+  const handleAddCustomEndpoint = () => {
+    if (!newEndpointUrl.trim()) return;
+
+    try {
+      new URL(newEndpointUrl); // Validate URL
+      addSavedEndpoint(
+        newEndpointUrl,
+        newEndpointDesc.trim() || `Custom endpoint at ${new URL(newEndpointUrl).hostname}`
+      );
+      setNewEndpointUrl('');
+      setNewEndpointDesc('');
+      setImportStatus('success');
+      setImportMessage('Discovery endpoint added successfully');
+      setTimeout(() => setImportStatus('idle'), 3000);
+    } catch {
+      setImportStatus('error');
+      setImportMessage('Please enter a valid URL');
+      setTimeout(() => setImportStatus('idle'), 3000);
+    }
   };
 
   return (
@@ -257,6 +301,188 @@ export default function SettingsPage() {
                 connection settings and preferences but no chat history or sensitive credentials.
               </AlertDescription>
             </Alert>
+          </CardContent>
+        </Card>
+
+        {/* Discovery Preferences Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              Discovery Preferences
+            </CardTitle>
+            <CardDescription>
+              Manage automatic service discovery and saved endpoints
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Discovery Settings */}
+            <div className="space-y-4">
+              <h3 className="font-medium">Discovery Settings</h3>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="localhost-discovery" className="text-base">
+                      Localhost Discovery
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Automatically check common localhost ports for services
+                    </p>
+                  </div>
+                  <Switch
+                    id="localhost-discovery"
+                    checked={enableLocalhostDiscovery}
+                    onCheckedChange={setLocalhostDiscovery}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="auto-save" className="text-base">
+                      Auto-save Discoveries
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Automatically save successful discovery endpoints
+                    </p>
+                  </div>
+                  <Switch
+                    id="auto-save"
+                    checked={enableAutoSave}
+                    onCheckedChange={setAutoSave}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Saved Endpoints */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium">Saved Discovery Endpoints</h3>
+                <Badge variant="secondary">{savedEndpoints.length}</Badge>
+              </div>
+
+              {savedEndpoints.length > 0 && (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {savedEndpoints.map((endpoint) => (
+                    <div
+                      key={endpoint.url}
+                      className="flex items-center justify-between p-3 border rounded-lg bg-muted/30"
+                    >
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <code className="text-sm font-mono truncate">
+                            {endpoint.url}
+                          </code>
+                          {endpoint.successCount > 0 && (
+                            <Badge variant="outline" className="text-xs">
+                              {endpoint.successCount} discoveries
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {endpoint.description}
+                        </p>
+                        {endpoint.lastUsed && (
+                          <p className="text-xs text-muted-foreground">
+                            Last used: {new Date(endpoint.lastUsed).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeSavedEndpoint(endpoint.url)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <BookmarkX className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add Custom Endpoint */}
+              <div className="space-y-2 pt-2 border-t">
+                <Label>Add Custom Discovery Endpoint</Label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <Input
+                    placeholder="https://your-service:3001"
+                    value={newEndpointUrl}
+                    onChange={(e) => setNewEndpointUrl(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') handleAddCustomEndpoint();
+                    }}
+                  />
+                  <Input
+                    placeholder="Description (optional)"
+                    value={newEndpointDesc}
+                    onChange={(e) => setNewEndpointDesc(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') handleAddCustomEndpoint();
+                    }}
+                  />
+                  <Button onClick={handleAddCustomEndpoint} disabled={!newEndpointUrl.trim()}>
+                    <Star className="mr-2 h-3 w-3" />
+                    Add
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Discovery History */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium">Discovery History</h3>
+                <div className="flex gap-2">
+                  <Badge variant="secondary">{discoveryHistory.length} attempts</Badge>
+                  {discoveryHistory.length > 0 && (
+                    <Button variant="outline" size="sm" onClick={clearHistory}>
+                      Clear History
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {discoveryHistory.length > 0 && (
+                <div className="space-y-1 max-h-40 overflow-y-auto text-xs">
+                  {discoveryHistory.slice(0, 10).map((entry, index) => (
+                    <div
+                      key={index}
+                      className={`flex items-center justify-between p-2 rounded ${
+                        entry.success ? 'bg-green-50 dark:bg-green-950' : 'bg-red-50 dark:bg-red-950'
+                      }`}
+                    >
+                      <span className="font-mono truncate">{entry.url}</span>
+                      <div className="flex items-center gap-2">
+                        {entry.protocol && (
+                          <Badge variant="outline" className="text-xs">
+                            {entry.protocol}
+                          </Badge>
+                        )}
+                        <span className={entry.success ? 'text-green-600' : 'text-red-600'}>
+                          {entry.success ? '✓' : '✗'}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {new Date(entry.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {discoveryHistory.length > 10 && (
+                    <p className="text-muted-foreground text-center py-2">
+                      ... and {discoveryHistory.length - 10} more entries
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {discoveryHistory.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4 bg-muted/30 rounded">
+                  No discovery attempts yet. Try discovering some services!
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 

@@ -44,7 +44,7 @@ const mcpConfigFields: ConfigField[] = [
     label: 'Server URL',
     type: 'text',
     required: true,
-    placeholder: 'http://localhost:3001',
+    placeholder: 'https://your-server.com:3001',
     description: 'Server endpoint (for HTTP/SSE transport)',
     validation: {
       pattern: '^https?://.+',
@@ -257,7 +257,7 @@ const langChainConfigFields: ConfigField[] = [
     label: 'Server Endpoint',
     type: 'text',
     required: true,
-    placeholder: 'http://localhost:8000',
+    placeholder: 'https://your-server.com:8000',
     description: 'LangChain server endpoint',
     validation: {
       pattern: '^https?://.+',

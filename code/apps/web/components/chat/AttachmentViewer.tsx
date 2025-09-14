@@ -5,13 +5,13 @@ import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { 
-  Download, 
-  X, 
-  File, 
-  Image, 
-  Video, 
-  Music, 
+import {
+  Download,
+  X,
+  File,
+  Image as ImageIcon,
+  Video,
+  Music,
   FileText,
   ExternalLink,
   AlertCircle,
@@ -42,7 +42,7 @@ export function AttachmentViewer({ attachment, onDownload, onRemove }: Attachmen
   }
 
   const getFileIcon = () => {
-    if (attachment.type.startsWith('image/')) return Image
+    if (attachment.type.startsWith('image/')) return ImageIcon
     if (attachment.type.startsWith('video/')) return Video
     if (attachment.type.startsWith('audio/')) return Music
     if (attachment.type === 'application/pdf' || attachment.type.includes('document')) return FileText

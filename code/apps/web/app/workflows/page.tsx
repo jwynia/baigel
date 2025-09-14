@@ -64,8 +64,7 @@ export default function WorkflowsPage() {
     clearServices
   } = useWorkflowDiscovery({
     autoDiscover: false, // Don't auto-discover on mount
-    persistToStorage: true,
-    includeMockData: false // Start with real discovery only
+    persistToStorage: true
   });
 
   // Auto-discover if no services on mount

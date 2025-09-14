@@ -102,3 +102,6 @@ export { Checkbox } from "./checkbox"
 
 // Alert components
 export { Alert, AlertTitle, AlertDescription } from "./alert"
+
+// Switch component
+export { Switch } from "./switch"

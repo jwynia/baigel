@@ -3,9 +3,10 @@
  * Probes endpoints to discover available agents and tools
  */
 
-import type { 
-  ProbeConfig, 
-  ProbeResult, 
+import { useDiscoveryPreferencesStore } from '@/lib/stores/discovery-preferences'
+import type {
+  ProbeConfig,
+  ProbeResult,
   DiscoveredAgent,
   DiscoveredEndpoint,
   ProtocolType 
@@ -474,13 +475,36 @@ export function isValidUrl(url: string): boolean {
 
 /**
  * Get example URLs for discovery
+ * Combines default discovery URLs with user-saved endpoints based on preferences
  */
-export function getExampleUrls(): Array<{ url: string; description: string }> {
+export function getExampleUrls(): Array<{ url: string; description: string; source?: 'default' | 'user' }> {
+  // For server-side rendering or initial load, return empty array
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    // Get discovery URLs from preferences store
+    const store = useDiscoveryPreferencesStore.getState();
+    return store.getDiscoveryUrls();
+  } catch (error) {
+    // Fallback to static examples if store is not available
+    console.warn('Could not load discovery preferences, using fallback URLs:', error);
+    return [
+      { url: 'http://localhost:3001', description: 'Local MCP Server', source: 'default' },
+      { url: 'http://localhost:11434', description: 'Local Ollama Server', source: 'default' },
+      { url: 'https://api.openai.com', description: 'OpenAI API', source: 'default' },
+    ];
+  }
+}
+
+/**
+ * Get static fallback URLs (used when preferences store is unavailable)
+ */
+export function getFallbackUrls(): Array<{ url: string; description: string }> {
   return [
     { url: 'http://localhost:3001', description: 'Local MCP Server' },
     { url: 'http://localhost:11434', description: 'Local Ollama Server' },
     { url: 'https://api.openai.com', description: 'OpenAI API' },
-    { url: 'https://agent.example.com', description: 'A2A Agent Server' },
-    { url: 'http://100.80.122.46:4111', description: 'Live Mastra Workflow Engine' },
   ];
 }
