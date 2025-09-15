@@ -39,3 +39,38 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }))
+
+// Mock URL.createObjectURL and URL.revokeObjectURL
+global.URL.createObjectURL = vi.fn(() => 'mocked-object-url')
+global.URL.revokeObjectURL = vi.fn()
+
+// Mock HTMLAnchorElement for download functionality
+const mockAnchorElement = {
+  href: '',
+  download: '',
+  click: vi.fn(),
+  style: {},
+  setAttribute: vi.fn(),
+  getAttribute: vi.fn(),
+}
+
+// Mock only the specific elements we need for downloads
+global.HTMLAnchorElement = vi.fn(() => mockAnchorElement) as any
+
+// Mock body methods for download functionality
+const originalAppendChild = document.body.appendChild
+const originalRemoveChild = document.body.removeChild
+
+document.body.appendChild = vi.fn((element) => {
+  if (element instanceof HTMLAnchorElement || element?.tagName === 'A') {
+    return element
+  }
+  return originalAppendChild.call(document.body, element)
+})
+
+document.body.removeChild = vi.fn((element) => {
+  if (element instanceof HTMLAnchorElement || element?.tagName === 'A') {
+    return element
+  }
+  return originalRemoveChild.call(document.body, element)
+})

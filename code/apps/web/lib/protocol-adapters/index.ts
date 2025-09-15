@@ -1,35 +1,12 @@
 import type { Connection } from '@/lib/types/connections'
 import type { Message, Tool, ToolCall } from '@/lib/types'
-
-// Protocol-specific configuration interfaces
-interface OpenAIConfig {
-  apiKey: string
-  baseUrl?: string
-  model?: string
-}
-
-interface MCPConfig {
-  serverUrl: string
-  transport: 'http' | 'stdio'
-  command?: string
-  args?: string[]
-}
-
-interface A2AConfig {
-  agentUrl: string
-  apiKey?: string
-}
-
-interface AnthropicConfig {
-  apiKey: string
-  baseUrl?: string
-  model?: string
-}
-
-interface OllamaConfig {
-  baseUrl: string
-  model: string
-}
+import type {
+  OpenAIConfig,
+  MCPConfig,
+  A2AConfig,
+  AnthropicConfig,
+  OllamaConfig
+} from '@/lib/types/protocol-configs'
 
 // Base protocol adapter interface
 export interface ProtocolAdapter {
